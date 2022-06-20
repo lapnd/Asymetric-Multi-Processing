@@ -78,7 +78,6 @@ class BaseSoC(SoCMini):
 
         # FemtoRV SoC.
         # ------------
-
         # Generate standalone SoC.
         os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
                   "--sys-clk-freq=100e6 --name=femtorv_soc --integrated-rom-size=0x8000 "

@@ -87,9 +87,7 @@ static void help(void)
 #ifdef CSR_LEDS_BASE
     puts("led                - Led demo");
 #endif
-    puts("donut              - Spinning Donut demo");
-    puts("helloc             - Hello C");
-    puts("time               - Time difference");
+    puts("sum              - Synchronized sum");
 #ifdef WITH_CXX
     puts("hellocpp           - Hello C++");
 #endif
@@ -136,39 +134,13 @@ static void led_cmd(void)
 }
 #endif
 
-extern void donut(void);
+extern void sum(void);
 
-static void donut_cmd(void)
+static void sum_cmd(void)
 {
-    printf("Donut demo...\n");
-    donut();
+    sum();
 }
 
-extern void time_diff(void);
-
-static void time_cmd(void)
-{
-    printf("Time difference demo...\n");
-    time_diff();
-}
-
-extern void helloc(void);
-
-static void helloc_cmd(void)
-{
-    printf("Hello C demo...\n");
-    helloc();
-}
-
-#ifdef WITH_CXX
-extern void hellocpp(void);
-
-static void hellocpp_cmd(void)
-{
-	printf("Hello C++ demo...\n");
-	hellocpp();
-}
-#endif
 
 /*-----------------------------------------------------------------------*/
 /* Console service / Main                                                */
@@ -190,16 +162,9 @@ static void console_service(void)
         else if(strcmp(token, "led") == 0)
 		led_cmd();
 #endif
-    else if(strcmp(token, "donut") == 0)
-        donut_cmd();
-    else if(strcmp(token, "helloc") == 0)
-        helloc_cmd();
-    else if(strcmp(token, "time") == 0)
-        time_cmd();
-#ifdef WITH_CXX
-    else if(strcmp(token, "hellocpp") == 0)
-		hellocpp_cmd();
-#endif
+    else if(strcmp(token, "sum") == 0)
+        sum_cmd();
+
     prompt();
 }
 
