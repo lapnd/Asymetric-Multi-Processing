@@ -35,11 +35,6 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCMini):
-    mem_map = {
-        "rom": 0x00000000,
-        "sram": 0x01000000,
-        "main_ram": 0x40000000,
-    }
     mem_map = {**SoCCore.mem_map, **{
         "csr": 0x10000000,
     }}
@@ -74,14 +69,17 @@ class BaseSoC(SoCMini):
         self.submodules += uart_mux
 
         # Shared RAM.
-        self.add_ram("shared_ram", 0x0000_0000, 0x1000, contents=[i for i in range(16)])
+        self.add_ram("shared_ram", 0x0000_0000, 0x00001000, contents=[i for i in range(16)])
 
         # FemtoRV SoC.
         # ------------
         # Generate standalone SoC.
+        #os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
+        #          "--sys-clk-freq=50e6 --name=femtorv_soc --integrated-rom-size=0x1000 "
+        #          "--integrated-sram-size=0x1000 --integrated-main-ram-size=0x1000 --build")
         os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
-                  "--sys-clk-freq=100e6 --name=femtorv_soc --integrated-rom-size=0x8000 "
-                  "--integrated-sram-size=0x8000 --integrated-main-ram-size=0x8000 --build")
+                  "--sys-clk-freq=50e6 --name=femtorv_soc --integrated-main-ram-size=0x4000 "
+                  "--build")
         # Add standalone SoC sources.
         platform.add_source("build/femtorv_soc/gateware/femtorv_soc.v")
         platform.add_source("build/femtorv_soc/gateware/femtorv_soc_rom.init", copy=True)
@@ -130,8 +128,8 @@ class BaseSoC(SoCMini):
 
         # Generate standalone SoC.
         os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone "
-                  "--sys-clk-freq=100e6 --name=firev_soc --integrated-rom-size=0x8000 "
-                  "--integrated-sram-size=0x8000 --integrated-main-ram-size=0x8000 --build")
+                  "--sys-clk-freq=50e6 --name=firev_soc --integrated-main-ram-size=0x4000 "
+                  "--build")
         # Add standalone SoC sources.
         platform.add_source("build/firev_soc/gateware/firev_soc.v")
         platform.add_source("build/firev_soc/gateware/firev_soc_rom.init", copy=True)

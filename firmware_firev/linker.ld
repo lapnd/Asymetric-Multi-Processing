@@ -57,10 +57,10 @@ SECTIONS
 		_end = .;
 	} > sram
 
-	.joseph :
+	joseph :
     	{
-    		*(.joseph)
-    	} > mmap_m AT > main_ram
+    		*(joseph)
+    	} > mmap_m
 }
 
 PROVIDE(_fstack = ORIGIN(sram) + LENGTH(sram));
