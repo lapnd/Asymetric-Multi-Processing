@@ -9,13 +9,13 @@ typedef struct DATA {
     int flag;
     int value;
 } DATA;
-
+void sum(void);
 int a ;
 int b ;
 
 DATA data __attribute__ ((section ("joseph"))) = {0,  0};
 
-void sum()
+void sum(void)
 {
     a = 2;
     b = 1;

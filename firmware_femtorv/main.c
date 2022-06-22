@@ -88,9 +88,6 @@ static void help(void)
     puts("led                - Led demo");
 #endif
     puts("sum              - Synchronized sum");
-#ifdef WITH_CXX
-    puts("hellocpp           - Hello C++");
-#endif
 }
 
 /*-----------------------------------------------------------------------*/
@@ -162,6 +159,7 @@ static void console_service(void)
         else if(strcmp(token, "led") == 0)
 		led_cmd();
 #endif
+
     else if(strcmp(token, "sum") == 0)
         sum_cmd();
 

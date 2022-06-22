@@ -10,12 +10,14 @@ typedef struct DATA {
     int value;
 } DATA;
 
+void sum(void) ;
+
 int a ;
 int b ;
 
 DATA data __attribute__ ((section ("joseph"))) = {0,  0};
 
-void sum()
+void sum(void)
 {
     int a=1;
     int b=0;
