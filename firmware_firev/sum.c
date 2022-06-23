@@ -19,13 +19,11 @@ void sum(void)
 {
     a = 2;
     b = 1;
-    while(1)
-    {
         if (data.flag == 0)
         {
             data.value = a + b;
             a +=1 ;
             data.flag = 1;
         }
-    }
+
 }

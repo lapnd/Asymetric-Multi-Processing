@@ -61,12 +61,14 @@ class BaseSoC(SoCMini):
         # Standalone SoC Generation/Re-Integration -------------------------------------------------
 
         # Shared UART.
-        uart_pads = platform.request("serial")
-        uart_sel  = platform.request("user_sw", 0)
-        uart_mux_pads = [UARTPads() for _ in range(2)]
-        uart_mux      = UARTMultiplexer(uart_mux_pads, uart_pads)
-        self.comb += uart_mux.sel.eq(uart_sel)
-        self.submodules += uart_mux
+        uart_pads_1 = platform.request("serial", 0)
+        uart_pads_2 = platform.request("serial", 1)
+        #uart_sel  = platform.request("user_sw", 0)
+        #print("uart_pads : {} ".format(type(uart_pads)))
+        #uart_mux_pads = [UARTPads() for _ in range(2)]
+        #uart_mux      = UARTMultiplexer(uart_mux_pads, uart_pads)
+        #self.comb += uart_mux.sel.eq(uart_sel)
+        #self.submodules += uart_mux
 
         # Shared RAM.
         self.add_ram("shared_ram", 0x0000_0000, 0x00001000, contents=[i for i in range(16)])
@@ -96,8 +98,10 @@ class BaseSoC(SoCMini):
             i_rst     = ResetSignal("sys"),
 
             # UART.
-            o_uart_tx = uart_mux_pads[0].tx,
-            i_uart_rx = uart_mux_pads[0].rx,
+            #o_uart_tx = uart_mux_pads[0].tx,
+            #i_uart_rx = uart_mux_pads[0].rx,
+            o_uart_tx = uart_pads_1.tx,
+            i_uart_rx = uart_pads_1.rx,
 
             # MMAP.
             o_mmap_m_adr   = mmap_wb.adr[:24], # CHECKME/FIXME: Base address
@@ -146,8 +150,11 @@ class BaseSoC(SoCMini):
             i_rst     = ResetSignal("sys"),
 
             # UART.
-            o_uart_tx = uart_mux_pads[1].tx,
-            i_uart_rx = uart_mux_pads[1].rx,
+            #o_uart_tx = uart_mux_pads[1].tx,
+            #i_uart_rx = uart_mux_pads[1].rx,
+            o_uart_tx = uart_pads_2.tx,
+            i_uart_rx = uart_pads_2.rx,
+
 
             # MMAP.
             o_mmap_m_adr   = mmap_wb.adr[:24], # CHECKME/FIXME: Base address.

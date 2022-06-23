@@ -15,20 +15,19 @@ void sum(void) ;
 int a ;
 int b ;
 
-DATA data __attribute__ ((section ("joseph"))) = {0,  0};
+DATA data __attribute__ ((section ("joseph"))) ;
 
 void sum(void)
 {
     int a=1;
     int b=0;
     printf("Firev sum: %d", data.value);
-    while(1)
-    {
+
        if (data.flag == 1)
         {
           b = a + data.value;
           printf("femtorv sum: %d", b);
           data.flag = 0;
         }
-    }
+
 }
