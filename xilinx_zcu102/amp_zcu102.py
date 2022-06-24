@@ -123,7 +123,7 @@ class BaseSoC(SoCMini):
 
         # Generate standalone SoC.
         os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone "
-                  "--sys-clk-freq=125e6 --name=firev_soc --integrated-main-ram-size=0x4000 --build")
+                  "--sys-clk-freq=35e6 --name=firev_soc --integrated-main-ram-size=0x4000 --build")
 
         # Add standalone SoC sources.
         platform.add_source("build/firev_soc/gateware/firev_soc.v")

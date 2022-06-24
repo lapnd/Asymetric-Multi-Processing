@@ -21,12 +21,14 @@ void sum(void)
 {
     int a=1;
     int b=0;
-    printf("Firev sum: %d", data.value);
+    printf("hello I am the femtorv, I get that from firev");
+    printf("Firev sum: %d \n", data.value);
 
        if (data.flag == 1)
         {
           b = a + data.value;
-          printf("femtorv sum: %d", b);
+          printf("femtorv sum: %d \n", b);
+
           data.flag = 0;
         }
 

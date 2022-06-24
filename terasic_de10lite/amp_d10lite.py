@@ -2,6 +2,7 @@
 
 # Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
+import litex.soc.doc as lxsocdoc
 
 from migen import *
 
@@ -13,12 +14,13 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc import SoCRegion
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.builder import *
+from litex.soc.integration.doc import AutoDoc
 from litex.soc.cores.led import LedChaser
 from litex.soc.cores.uart import *
 
 # CRG ----------------------------------------------------------------------------------------------
 
-class _CRG(Module):
+class _CRG(Module, AutoDoc):
     def __init__(self, platform, sys_clk_freq, with_rst=True):
         self.rst = Signal()
         self.clock_domains.cd_sys = ClockDomain()
@@ -56,7 +58,6 @@ class BaseSoC(SoCMini):
             self.submodules.leds = LedChaser(
                 pads         = platform.request_all("user_led"),
                 sys_clk_freq = sys_clk_freq)
-
 
         # Standalone SoC Generation/Re-Integration -------------------------------------------------
 
@@ -204,9 +205,9 @@ def main():
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
-    #if args.flash:
-    #    prog = soc.platform.create_programmer()
-    #    prog.flash(0, builder.get_bitstream_filename(mode="flash"))
+    lxsocdoc.generate_docs(soc, "build/documentation/", project_name="Assymetric Multi-Processing SoC",
+                           author="Joseph W. FAYE")
+
 
 if __name__ == "__main__":
     main()
