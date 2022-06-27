@@ -74,6 +74,7 @@ class BaseSoC(SoCMini):
         # Shared RAM.
         self.add_ram("shared_ram", 0x0000_0000, 0x00001000, contents=[i for i in range(16)])
 
+
         # FemtoRV SoC.
         # ------------
         # Generate standalone SoC.
@@ -105,17 +106,20 @@ class BaseSoC(SoCMini):
             i_uart_rx = uart_pads_1.rx,
 
             # MMAP.
-            o_mmap_m_adr   = mmap_wb.adr[:24], # CHECKME/FIXME: Base address
-            o_mmap_m_dat_w = mmap_wb.dat_w,
-            i_mmap_m_dat_r = mmap_wb.dat_r,
-            o_mmap_m_sel   = mmap_wb.sel,
-            o_mmap_m_cyc   = mmap_wb.cyc,
-            o_mmap_m_stb   = mmap_wb.stb,
-            i_mmap_m_ack   = mmap_wb.ack,
-            o_mmap_m_we    = mmap_wb.we,
-            o_mmap_m_cti   = mmap_wb.cti,
-            o_mmap_m_bte   = mmap_wb.bte,
-            i_mmap_m_err   = mmap_wb.err,
+            o_mmap_sm_adr   = mmap_wb.adr[:24], # CHECKME/FIXME: Base address
+            o_mmap_sm_dat_w = mmap_wb.dat_w,
+            i_mmap_sm_dat_r = mmap_wb.dat_r,
+            o_mmap_sm_sel   = mmap_wb.sel,
+            o_mmap_sm_cyc   = mmap_wb.cyc,
+            o_mmap_sm_stb   = mmap_wb.stb,
+            i_mmap_sm_ack   = mmap_wb.ack,
+            o_mmap_sm_we    = mmap_wb.we,
+            o_mmap_sm_cti   = mmap_wb.cti,
+            o_mmap_sm_bte   = mmap_wb.bte,
+            i_mmap_sm_err   = mmap_wb.err,
+
+            #MMAP | Scratchpad
+
         )
         self.bus.add_master(master=mmap_wb)
 
@@ -158,17 +162,17 @@ class BaseSoC(SoCMini):
 
 
             # MMAP.
-            o_mmap_m_adr   = mmap_wb.adr[:24], # CHECKME/FIXME: Base address.
-            o_mmap_m_dat_w = mmap_wb.dat_w,
-            i_mmap_m_dat_r = mmap_wb.dat_r,
-            o_mmap_m_sel   = mmap_wb.sel,
-            o_mmap_m_cyc   = mmap_wb.cyc,
-            o_mmap_m_stb   = mmap_wb.stb,
-            i_mmap_m_ack   = mmap_wb.ack,
-            o_mmap_m_we    = mmap_wb.we,
-            o_mmap_m_cti   = mmap_wb.cti,
-            o_mmap_m_bte   = mmap_wb.bte,
-            i_mmap_m_err   = mmap_wb.err,
+            o_mmap_sm_adr   = mmap_wb.adr[:24], # CHECKME/FIXME: Base address.
+            o_mmap_sm_dat_w = mmap_wb.dat_w,
+            i_mmap_sm_dat_r = mmap_wb.dat_r,
+            o_mmap_sm_sel   = mmap_wb.sel,
+            o_mmap_sm_cyc   = mmap_wb.cyc,
+            o_mmap_sm_stb   = mmap_wb.stb,
+            i_mmap_sm_ack   = mmap_wb.ack,
+            o_mmap_sm_we    = mmap_wb.we,
+            o_mmap_sm_cti   = mmap_wb.cti,
+            o_mmap_sm_bte   = mmap_wb.bte,
+            i_mmap_sm_err   = mmap_wb.err,
         )
         self.bus.add_master(master=mmap_wb)
 
