@@ -119,23 +119,23 @@ class BaseSoC(SoCMini, AutoDoc):
 
         self.comb += r
 
-        # FemtoRV SoC.
+        # FireRV SoC.
         # ------------
         # Generate standalone SoC.
-        os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
-                  "--sys-clk-freq=50e6 --n-master-inter=2 --name=femtorv_soc --integrated-main-ram-size=0x4000 "
+        os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone "
+                  "--sys-clk-freq=100e6 --n-master-inter=2 --name=firev_soc_0 --integrated-main-ram-size=0x4000 "
                   "--build")
         # Add standalone SoC sources.
-        platform.add_source("build/femtorv_soc/gateware/femtorv_soc.v")
-        platform.add_source("build/femtorv_soc/gateware/femtorv_soc_rom.init", copy=True)
+        platform.add_source("build/firev_soc_0/gateware/firev_soc_0.v")
+        platform.add_source("build/firev_soc_0/gateware/firev_soc_0_rom.init", copy=True)
 
         # Add CPU sources.
-        from litex.soc.cores.cpu.femtorv import FemtoRV
-        FemtoRV.add_sources(platform, "standard")
+        from litex.soc.cores.cpu.firev import FireV
+        FireV.add_sources(platform, "standard")
 
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
-        self.specials += Instance("femtorv_soc",
+        self.specials += Instance("firev_soc_0",
             # Clk/Rst.
             i_clk     = ClockSignal("sys"),
             i_rst     = ResetSignal("sys"),
@@ -187,19 +187,19 @@ class BaseSoC(SoCMini, AutoDoc):
 
         # Generate standalone SoC.
         os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone "
-                  "--sys-clk-freq=50e6 --n-master-inter=2 --name=firev_soc --integrated-main-ram-size=0x4000 "
+                  "--sys-clk-freq=100e6 --n-master-inter=2 --name=firev_soc_1 --integrated-main-ram-size=0x4000 "
                   "--build")
         # Add standalone SoC sources.
-        platform.add_source("build/firev_soc/gateware/firev_soc.v")
-        platform.add_source("build/firev_soc/gateware/firev_soc_rom.init", copy=True)
+        platform.add_source("build/firev_soc_1/gateware/firev_soc_1.v")
+        platform.add_source("build/firev_soc_1/gateware/firev_soc_1_rom.init", copy=True)
 
         # Add CPU sources.
-        from litex.soc.cores.cpu.firev import FireV
-        FireV.add_sources(platform, "standard")
+        # from litex.soc.cores.cpu.firev import FireV
+        # FireV.add_sources(platform, "standard")
 
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
-        self.specials += Instance("firev_soc",
+        self.specials += Instance("firev_soc_1",
             # Clk/Rst.
             i_clk     = ClockSignal("sys"),
             i_rst     = ResetSignal("sys"),

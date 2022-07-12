@@ -59,6 +59,16 @@ dkms.conf
 
 # Generated from build
 
-/Anisotrop/Dual_Core/Heterogen/fireV_femtorV/analyzer.csv
-/Anisotrop/Dual_Core/Heterogen/fireV_femtorV/femtorv32_quark.v
-/Anisotrop/Dual_Core/Heterogen/fireV_femtorV/firev.v
+
+/Anisotrop/Dual_Core/Heterogen/Fire_Femto/analyzer.csv
+/Anisotrop/Dual_Core/Heterogen/Fire_Femto/femtorv32_quark.v
+/Anisotrop/Dual_Core/Heterogen/Fire_Femto/firev.v
+
+/Anisotrop/Dual_Core/Homogen/Femto_Femto/build/
+/Anisotrop/Dual_Core/Homogen/Femto_Femto/femtorv32_quark.v
+k
+/Anisotrop/Dual_Core/Heterogen/Fire_Femto/build/
+/Anisotrop/Dual_Core/Homogen/Femto_Femto/analyzer.csv
+/Anisotrop/Dual_Core/Homogen/Fire_Fire/build/
+/Anisotrop/Dual_Core/Homogen/Fire_Fire/analyzer.csv
+/Anisotrop/Dual_Core/Homogen/Fire_Fire/firev.v
