@@ -42,8 +42,8 @@ class BaseSoC(SoCMini, AutoDoc):
     mem_map = {**SoCCore.mem_map, **{
         "csr": 0x10000000,
     }}
-    def __init__(self, platform, platform_name, mux, toolchain="vivado",
-                 sys_clk_freq=int(50e6), with_led_chaser=True):
+    def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='', main_ram_size=0x1000,
+                 sram_size=0x1000, sys_clk_freq=int(50e6), with_led_chaser=True):
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -122,12 +122,16 @@ class BaseSoC(SoCMini, AutoDoc):
         # FemtoRV SoC.
         # ------------
         # Generate standalone SoC.
-        os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
-                  "--sys-clk-freq=100e6 --n-master-inter=2 --name=femtorv_soc --integrated-main-ram-size=0x4000 "
-                  "--build")
+        soc_name = 'femtorv_soc'
+        os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone --sys-clk-freq=100e6 --n-master-inter=2 "
+                  f"--name={soc_name} --integrated-main-ram-size={main_ram_size} --integrated-sram-size={sram_size} "
+                  f"--output-dir={os.path.join(build_dir, soc_name) if build_dir else ''} --build")
         # Add standalone SoC sources.
-        platform.add_source("build/femtorv_soc/gateware/femtorv_soc.v")
-        platform.add_source("build/femtorv_soc/gateware/femtorv_soc_rom.init", copy=True)
+        platform.add_source(
+            f"{os.path.join(build_dir, soc_name, 'gateware', 'femtorv_soc.v') if build_dir else 'build/femtorv_soc/gateware/femtorv_soc.v'}")
+        platform.add_source(
+            f"{os.path.join(build_dir, soc_name, 'gateware', 'femtorv_soc_rom.init') if build_dir else 'build/femtorv_soc/gateware/femtorv_soc_rom.init'}",
+            copy=True)
 
         # Add CPU sources.
         from litex.soc.cores.cpu.femtorv import FemtoRV
@@ -186,12 +190,13 @@ class BaseSoC(SoCMini, AutoDoc):
         # ----------
 
         # Generate standalone SoC.
-        os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone "
-                  "--sys-clk-freq=100e6 --n-master-inter=2 --name=firev_soc --integrated-main-ram-size=0x4000 "
-                  "--build")
+        soc_name = 'firev_soc'
+        os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone --sys-clk-freq=100e6 --n-master-inter=2 "
+                  f"--name={soc_name} --integrated-main-ram-size={main_ram_size} --integrated-sram-size={sram_size} "
+                  f"--output-dir={os.path.join(build_dir, soc_name) if build_dir else ''} --build")
         # Add standalone SoC sources.
-        platform.add_source("build/firev_soc/gateware/firev_soc.v")
-        platform.add_source("build/firev_soc/gateware/firev_soc_rom.init", copy=True)
+        platform.add_source(f"{os.path.join(build_dir, soc_name, 'gateware', 'firev_soc.v') if build_dir else 'build/firev_soc/gateware/firev_soc.v'}")
+        platform.add_source(f"{os.path.join(build_dir, soc_name, 'gateware', 'firev_soc_rom.init') if build_dir else 'build/firev_soc/gateware/firev_soc_rom.init'}", copy=True)
 
         # Add CPU sources.
         from litex.soc.cores.cpu.firev import FireV
@@ -250,16 +255,22 @@ def main():
     target_group.add_argument("--load",         action="store_true", help="Load bitstream.")
     target_group.add_argument("--mux",        default=False, help="use uart mux")
     target_group.add_argument("--sys-clk-freq", default=50e6,       help="System clock frequency.")
+    target_group.add_argument("--build_dir", default='build_dir', help="Base output directory.")
     builder_args(parser)
     args = parser.parse_args()
-
     soc = BaseSoC(
         platform_name='De10Lite',
         platform=args.platform,
         toolchain=args.toolchain,
         sys_clk_freq=int(float(args.sys_clk_freq)),
-        mux=args.mux
+        mux=args.mux,
+        build_dir=args.build_dir,
+        main_ram_size=0x4000,
+        sram_size=0x1000,
     )
+    args.output_dir = os.path.join(args.build_dir, soc.platform.name) if args.build_dir else ''
+    print("RIDOPE_SOC_INFO : Soc Name {}".format(soc.platform.name))
+    print("RIDOPE_SOC_INFO : args {}".format(args))
 
     builder = Builder(soc, **builder_argdict(args))
     builder_kwargs = {}
@@ -269,7 +280,7 @@ def main():
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
-    lxsocdoc.generate_docs(soc, "build/documentation/", project_name="Assymetric Multi-Processing SoC",
+    lxsocdoc.generate_docs(soc, f"{args.build_dir}/documentation/", project_name="Assymetric Multi-Processing SoC",
                            author="Joseph W. FAYE")
 
 
