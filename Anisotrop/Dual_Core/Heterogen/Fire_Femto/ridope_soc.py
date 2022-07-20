@@ -261,6 +261,7 @@ def main():
     target_group.add_argument("--build_dir", default='build_dir', help="Base output directory.")
     builder_args(parser)
     args = parser.parse_args()
+
     soc = BaseSoC(
         platform_name='De10Lite',
         platform=args.platform,
@@ -268,9 +269,9 @@ def main():
         sys_clk_freq=int(float(args.sys_clk_freq)),
         mux=args.mux,
         build_dir=args.build_dir,
-        shared_ram_size=args.shared_ram_size,
-        main_ram_size=args.main_ram_size,
-        sram_size=args.sram_size,
+        shared_ram_size=int(args.shared_ram_size),
+        main_ram_size=int(args.main_ram_size),
+        sram_size=int(args.sram_size),
     )
     args.output_dir = os.path.join(args.build_dir, soc.platform.name) if args.build_dir else ''
     print("RIDOPE_SOC_INFO : Soc Name {}".format(soc.platform.name))
