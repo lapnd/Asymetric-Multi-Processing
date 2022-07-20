@@ -43,7 +43,7 @@ class BaseSoC(SoCMini, AutoDoc):
         "csr": 0x10000000,
     }}
     def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='', main_ram_size=0x1000,
-                 sram_size=0x1000, sys_clk_freq=int(50e6), with_led_chaser=True):
+                 sram_size=0x1000, shared_ram_size=0x1000, sys_clk_freq=int(50e6), with_led_chaser=True):
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -77,7 +77,7 @@ class BaseSoC(SoCMini, AutoDoc):
             uart_mux_pads =[platform.request("serial", 0), platform.request("serial", 1)]
 
         # Shared RAM.
-        self.add_ram("shared_ram", 0x0000_0000, 0x00001000, contents=contents)
+        self.add_ram("shared_ram", 0x0000_0000, shared_ram_size, contents=contents)
 
         # Buses
         self.submodules.bus1 = SoCBusHandler()
@@ -253,7 +253,10 @@ def main():
     target_group.add_argument("--toolchain",    default="quartus",    help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
     target_group.add_argument("--build",        action="store_true", help="Build bitstream.")
     target_group.add_argument("--load",         action="store_true", help="Load bitstream.")
-    target_group.add_argument("--mux",        default=False, help="use uart mux")
+    target_group.add_argument("--mux",        default=False, help="use uart mux.")
+    target_group.add_argument("--shared_ram_size", default=0x100, help="shared ram size.")
+    target_group.add_argument("--main_ram_size", default=0x10000, help="main ram size for the two cores.")
+    target_group.add_argument("--sram_size", default=0x4000, help="sram size for the two cores.")
     target_group.add_argument("--sys-clk-freq", default=50e6,       help="System clock frequency.")
     target_group.add_argument("--build_dir", default='build_dir', help="Base output directory.")
     builder_args(parser)
@@ -265,8 +268,9 @@ def main():
         sys_clk_freq=int(float(args.sys_clk_freq)),
         mux=args.mux,
         build_dir=args.build_dir,
-        main_ram_size=0x4000,
-        sram_size=0x1000,
+        shared_ram_size=args.shared_ram_size,
+        main_ram_size=args.main_ram_size,
+        sram_size=args.sram_size,
     )
     args.output_dir = os.path.join(args.build_dir, soc.platform.name) if args.build_dir else ''
     print("RIDOPE_SOC_INFO : Soc Name {}".format(soc.platform.name))
