@@ -43,7 +43,7 @@ class BaseSoC(SoCMini, AutoDoc):
         "csr": 0x10000000,
     }}
     def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='', main_ram_size=0x1000,
-                 sram_size=0x1000, shared_ram_size=0x1000, sys_clk_freq=int(50e6), with_led_chaser=True):
+                 sram_size=0x1000, shared_ram_size=0x100, sys_clk_freq=int(50e6), with_led_chaser=True):
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
@@ -89,8 +89,8 @@ class BaseSoC(SoCMini, AutoDoc):
         interface_1 = wishbone.Interface(data_width=self.bus1.data_width, bursting=self.bus1.bursting)
         interface_2 = wishbone.Interface(data_width=self.bus2.data_width, bursting=self.bus2.bursting)
         # Scratchpad Memories
-        self.submodules.scratch1 = wishbone.SRAM(0x1000, bus=interface_1, init=contents, read_only=False, name='scratchpad1')
-        self.submodules.scratch2 = wishbone.SRAM(0x1000, bus=interface_2, init=contents, read_only=False, name='scratchpad2')
+        self.submodules.scratch1 = wishbone.SRAM(0xC40, bus=interface_1, init=contents, read_only=False, name='scratchpad1')
+        self.submodules.scratch2 = wishbone.SRAM(0x100, bus=interface_2, init=contents, read_only=False, name='scratchpad2')
 
         # Interfaces to processors
 
@@ -125,7 +125,7 @@ class BaseSoC(SoCMini, AutoDoc):
         soc_name = 'femtorv_soc'
         os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone --sys-clk-freq=100e6 --n-master-inter=2 "
 #                  f"--name={soc_name} --integrated-main-ram-size={main_ram_size} --integrated-sram-size={sram_size} "
-                  f"--name={soc_name} --integrated-main-ram-size=0x10000 --integrated-sram-size=0x4000 "
+                  f"--name={soc_name} --integrated-rom-size=0x53b0 --integrated-sram-size=0x10000 "
                   f"--output-dir={os.path.join(build_dir, soc_name) if build_dir else ''} --build")
         # Add standalone SoC sources.
         platform.add_source(
@@ -177,15 +177,6 @@ class BaseSoC(SoCMini, AutoDoc):
         )
         self.bus.add_master(master=mmap_wb)
 
-        # Litescope.
-        from litescope import LiteScopeAnalyzer
-        self.submodules.analyzer = LiteScopeAnalyzer([mmap_wb],
-            depth        = 512,
-            clock_domain = "sys",
-            samplerate   = sys_clk_freq,
-            csr_csv      = "analyzer.csv"
-        )
-
         self.submodules.bus2 = SoCBusHandler()
         # FireV SoC.
         # ----------
@@ -194,7 +185,7 @@ class BaseSoC(SoCMini, AutoDoc):
         soc_name = 'firev_soc'
         os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone --sys-clk-freq=100e6 --n-master-inter=2 "
 #                  f"--name={soc_name} --integrated-main-ram-size={main_ram_size} --integrated-sram-size={sram_size} "
-                  f"--name={soc_name} --integrated-main-ram-size=0x4000 --integrated-sram-size=0x1000 "
+                  f"--name={soc_name}  --integrated-rom-size=0x53b0 --integrated-sram-size=0x10000 "
                   f"--output-dir={os.path.join(build_dir, soc_name) if build_dir else ''} --build")
         # Add standalone SoC sources.
         platform.add_source(f"{os.path.join(build_dir, soc_name, 'gateware', 'firev_soc.v') if build_dir else 'build/firev_soc/gateware/firev_soc.v'}")
