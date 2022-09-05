@@ -42,8 +42,9 @@ class BaseSoC(SoCMini, AutoDoc):
     mem_map = {**SoCCore.mem_map, **{
         "csr": 0x10000000,
     }}
-    def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='', sram_1_size=0x1000,
-                 sram_2_size=0x1000, rom_1_size=0x1000, rom_2_size=0x1000, sp_1_size=0x1000, sp_2_size=0x1000,
+    def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='',
+                 sram_1_size=0x1000, ram_1_size=0x1000, ram_2_size=0x1000, sram_2_size=0x1000,
+                 rom_1_size=0x1000, rom_2_size=0x1000, sp_1_size=0x1000, sp_2_size=0x1000,
                  shared_ram_size=0x1000, sys_clk_freq=int(50e6), with_led_chaser=True):
 
         # CRG --------------------------------------------------------------------------------------
@@ -126,8 +127,11 @@ class BaseSoC(SoCMini, AutoDoc):
         # ------------
         # Generate standalone SoC.
         soc_name = 'femtorv_soc'
-        os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone --sys-clk-freq=100e6 --n_master_i=2 "
-                  f"--name=femtorv_soc --integrated-rom-size={rom_1_size} --integrated-sram-size={sram_1_size} "
+        os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
+                  "--sys-clk-freq=100e6 --n_master_i=2 --name=femtorv_soc "
+                  f"--integrated-rom-size={rom_1_size} "
+                  f"--integrated-main-ram-size={ram_1_size} "
+                  f"--integrated-sram-size={sram_1_size} "
                   f"--output-dir={os.path.join(build_dir, 'femtorv_soc') if build_dir else ''} --build")
         # Add standalone SoC sources.
         platform.add_source(
@@ -194,8 +198,11 @@ class BaseSoC(SoCMini, AutoDoc):
 
         # Generate standalone SoC.
         soc_name = 'firev_soc'
-        os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone --sys-clk-freq=100e6 --n_master_i=2 "
-                  f"--name=firev_soc --integrated-rom-size={rom_2_size} --integrated-main-ram-size={sram_2_size} "
+        os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone "
+                  "--sys-clk-freq=100e6 --n_master_i=2 --name=firev_soc "
+                  f"--integrated-rom-size={rom_2_size} "
+                  f"--integrated-main-ram-size={ram_2_size} "
+                  f"--integrated-sram-size={sram_2_size} "
                   f"--output-dir={os.path.join(build_dir, 'firev_soc') if build_dir else ''} --build")
         # Add standalone SoC sources.
         platform.add_source(f"{os.path.join(build_dir,'firev_soc', 'gateware', 'firev_soc.v') if build_dir else 'build/firev_soc/gateware/firev_soc.v'}")
@@ -257,13 +264,15 @@ def main():
     target_group.add_argument("--build",            action="store_true", help="Build bitstream.")
     target_group.add_argument("--load",             action="store_true", help="Load bitstream.")
     target_group.add_argument("--mux",              default=False,       help="use uart mux.")
-    target_group.add_argument("--shared_ram_size",  default=0x20,       help="shared ram size.")
-    target_group.add_argument("--sram_1_size",      default=0x800,      help="main ram size for the first core")
-    target_group.add_argument("--sram_2_size",      default=0x800,      help="main ram size for the second core.")
-    target_group.add_argument("--rom_1_size",       default=0xad90,      help="rom size for the first core.")
-    target_group.add_argument("--rom_2_size",       default=0xad90,      help="rom size for the second core.")
-    target_group.add_argument("--sp_1_size",       default=0xc40,      help="rom size for the second core.")
-    target_group.add_argument("--sp_2_size",       default=0x100,      help="rom size for the second core.")
+    target_group.add_argument("--shared_ram_size",  default=0x20,        help="shared ram size.")
+    target_group.add_argument("--sram_1_size",      default=0x4000,      help="sram size for the first core")
+    target_group.add_argument("--sram_2_size",      default=0x2000,      help="sram size for the second core.")
+    target_group.add_argument("--ram_1_size",       default=0x10000,     help="main ram size for the first core.")
+    target_group.add_argument("--ram_2_size",       default=0x8000,      help="main ram size for the second core.")
+    target_group.add_argument("--rom_1_size",       default=0x8000,      help="rom size for the first core.")
+    target_group.add_argument("--rom_2_size",       default=0x8000,      help="rom size for the second core.")
+    target_group.add_argument("--sp_1_size",        default=0x1000,      help="rom size for the second core.")
+    target_group.add_argument("--sp_2_size",        default=0x100,       help="rom size for the second core.")
     target_group.add_argument("--sys-clk-freq",     default=50e6,        help="System clock frequency.")
     target_group.add_argument("--build_dir",        default='build_dir', help="Base output directory.")
     builder_args(parser)
@@ -279,6 +288,8 @@ def main():
         shared_ram_size=int(args.shared_ram_size),
         sram_1_size=int(args.sram_1_size),
         sram_2_size=int(args.sram_2_size),
+        ram_1_size=int(args.sram_1_size),
+        ram_2_size=int(args.sram_2_size),
         rom_1_size=int(args.rom_1_size),
         rom_2_size=int(args.rom_2_size),
         sp_1_size=int(args.sp_1_size),
