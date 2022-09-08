@@ -16,6 +16,7 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.doc import AutoDoc
 from litex_boards.platforms import terasic_de10lite
 from litex.soc.integration.soc import SoCBusHandler, SoCRegion, SoCCSRRegion, SoCError
+from litex.build.generic_platform import *
 
 from litex.build.altera.programmer import USBBlaster
 
@@ -45,17 +46,20 @@ class BaseSoC(SoCMini, AutoDoc):
     def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='',
                  sram_1_size=0x1000, ram_1_size=0x1000, ram_2_size=0x1000, sram_2_size=0x1000,
                  rom_1_size=0x1000, rom_2_size=0x1000, sp_1_size=0x1000, sp_2_size=0x1000,
-                 shared_ram_size=0x1000, sys_clk_freq=int(50e6), with_led_chaser=True):
+                 shared_ram_size=0x1000, sys_clk_freq=int(50e6), with_led_chaser=False):
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
+
+        platform.add_extension([("arduino_serial", 0,
+                                    Subsignal("tx", Pins("AA19"), IOStandard("3.3-V LVTTL")), # Arduino IO11
+                                    Subsignal("rx", Pins("Y19"), IOStandard("3.3-V LVTTL"))  # Arduino IO12
+                                ),])
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
                          ident="LiteX standalone SoC generator on {}".format(platform_name))
 
-        # JTAGBone ---------------------------------------------------------------------------------
-        self.add_jtagbone()
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
@@ -67,9 +71,11 @@ class BaseSoC(SoCMini, AutoDoc):
         # Standalone SoC Generation/Re-Integration -------------------------------------------------
         contents = [i for i in range(16)]
         # Shared or individual UART.
+        led_0 = platform.request("user_led", 0)
+        led_1 = platform.request("user_led", 1)
 
         if mux:
-            uart_pads = platform.request("serial", 0)
+            uart_pads = platform.request("arduino_serial")
             uart_sel  = platform.request("user_sw", 0)
             uart_mux_pads = [UARTPads() for _ in range(2)]
             uart_mux      = UARTMultiplexer(uart_mux_pads, uart_pads)
@@ -128,7 +134,7 @@ class BaseSoC(SoCMini, AutoDoc):
         # Generate standalone SoC.
         soc_name = 'femtorv_soc'
         os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
-                  "--sys-clk-freq=100e6 --n_master_i=2 --name=femtorv_soc "
+                  "--sys-clk-freq=100e6 --n-master-inter=2 --name=femtorv_soc "
                   f"--integrated-rom-size={rom_1_size} "
                   f"--integrated-main-ram-size={ram_1_size} "
                   f"--integrated-sram-size={sram_1_size} "
@@ -143,6 +149,11 @@ class BaseSoC(SoCMini, AutoDoc):
         # Add CPU sources.
         from litex.soc.cores.cpu.femtorv import FemtoRV
         FemtoRV.add_sources(platform, "standard")
+
+        self.comb += [
+            led_0.eq(uart_pads.tx),
+            led_1.eq(uart_pads.rx),
+        ]
 
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
@@ -183,23 +194,13 @@ class BaseSoC(SoCMini, AutoDoc):
         )
         self.bus.add_master(master=mmap_wb)
 
-        # Litescope.
-        from litescope import LiteScopeAnalyzer
-        self.submodules.analyzer = LiteScopeAnalyzer([mmap_wb],
-            depth        = 512,
-            clock_domain = "sys",
-            samplerate   = sys_clk_freq,
-            csr_csv      = "analyzer.csv"
-        )
-
-        self.submodules.bus2 = SoCBusHandler()
         # FireV SoC.
         # ----------
 
         # Generate standalone SoC.
         soc_name = 'firev_soc'
         os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone "
-                  "--sys-clk-freq=100e6 --n_master_i=2 --name=firev_soc "
+                  "--sys-clk-freq=100e6 --n-master-inter=2 --name=firev_soc "
                   f"--integrated-rom-size={rom_2_size} "
                   f"--integrated-main-ram-size={ram_2_size} "
                   f"--integrated-sram-size={sram_2_size} "
@@ -263,12 +264,12 @@ def main():
     target_group.add_argument("--toolchain",        default="quartus",   help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
     target_group.add_argument("--build",            action="store_true", help="Build bitstream.")
     target_group.add_argument("--load",             action="store_true", help="Load bitstream.")
-    target_group.add_argument("--mux",              default=False,       help="use uart mux.")
+    target_group.add_argument("--mux",              default=True,       help="use uart mux.")
     target_group.add_argument("--shared_ram_size",  default=0x20,        help="shared ram size.")
-    target_group.add_argument("--sram_1_size",      default=0x4000,      help="sram size for the first core")
-    target_group.add_argument("--sram_2_size",      default=0x2000,      help="sram size for the second core.")
-    target_group.add_argument("--ram_1_size",       default=0x10000,     help="main ram size for the first core.")
-    target_group.add_argument("--ram_2_size",       default=0x8000,      help="main ram size for the second core.")
+    target_group.add_argument("--sram_1_size",      default=0x10000,      help="sram size for the first core")
+    target_group.add_argument("--sram_2_size",      default=0x8000,      help="sram size for the second core.")
+    target_group.add_argument("--ram_1_size",       default=0x0,     help="main ram size for the first core.")
+    target_group.add_argument("--ram_2_size",       default=0x2000,      help="main ram size for the second core.")
     target_group.add_argument("--rom_1_size",       default=0x8000,      help="rom size for the first core.")
     target_group.add_argument("--rom_2_size",       default=0x8000,      help="rom size for the second core.")
     target_group.add_argument("--sp_1_size",        default=0x1000,      help="rom size for the second core.")
