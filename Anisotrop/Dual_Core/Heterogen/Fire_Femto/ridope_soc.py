@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Joseph Wagane FAYE <joseph-wagane.faye@insa-rennes.fr
+# Copyright (c) 2022 Lucas Esteves ROCHA <@insa-rennes.fr
 # SPDX-License-Identifier: BSD-2-Clause
-# Modifications by Joseph Wagane FAYE <joseph-wagane.faye@insa-rennes.fr>
+import argparse
 import litex.soc.doc as lxsocdoc
 import time
 from migen import *
@@ -22,18 +23,18 @@ import json
 from litex.build.altera.programmer import USBBlaster
 
 
-import logging
-LOG_LEVEL = logging.WARNING
-LOGFORMAT = "  %(log_color)s%(levelname)-8s%(reset)s | %(log_color)s%(message)s%(reset)s"
-from colorlog import ColoredFormatter
-logging.root.setLevel(LOG_LEVEL)
-formatter = ColoredFormatter(LOGFORMAT)
-stream = logging.StreamHandler()
-stream.setLevel(LOG_LEVEL)
-stream.setFormatter(formatter)
-log = logging.getLogger('pythonConfig')
-log.setLevel(LOG_LEVEL)
-log.addHandler(stream)
+#import logging
+#LOG_LEVEL = logging.WARNING
+#LOGFORMAT = "  %(log_color)s%(levelname)-8s%(reset)s | %(log_color)s%(message)s%(reset)s"
+#from colorlog import ColoredFormatter
+#logging.root.setLevel(LOG_LEVEL)
+#formatter = ColoredFormatter(LOGFORMAT)
+#stream = logging.StreamHandler()
+#stream.setLevel(LOG_LEVEL)
+#stream.setFormatter(formatter)
+#log = logging.getLogger('pythonConfig')
+#log.setLevel(LOG_LEVEL)
+#log.addHandler(stream)
 
 
 
@@ -56,9 +57,12 @@ class _CRG(Module, AutoDoc):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCMini, AutoDoc):
-    mem_map = {**SoCCore.mem_map, **{
+    mem_map = {
         "csr": 0x10000000,
-    }}
+        "rom": 0x00000000,
+        "sram": 0x01000000,
+        "main_ram": 0x01010000,
+    }
     def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='',
                  sram_1_size=0x1000, ram_1_size=0x1000, ram_2_size=0x1000, sram_2_size=0x1000,
                  rom_1_size=0x1000, rom_2_size=0x1000, sp_1_size=0x1000, sp_2_size=0x1000,
@@ -88,13 +92,16 @@ class BaseSoC(SoCMini, AutoDoc):
         contents = [i for i in range(16)]
 
         # Shared or individual UART.
+
         if mux:
-            uart_pads = platform.request("arduino_serial")
+            #uart_pads = platform.request("arduino_serial")
+            uart_pads = platform.request("serial", 0)
             uart_sel  = platform.request("user_sw", 0)
             uart_mux_pads = [UARTPads() for _ in range(2)]
             uart_mux      = UARTMultiplexer(uart_mux_pads, uart_pads)
             self.comb += uart_mux.sel.eq(uart_sel)
             self.submodules += uart_mux
+
         else:
             uart_mux_pads =[platform.request("serial", 0), platform.request("serial", 1)]
 
@@ -151,14 +158,20 @@ class BaseSoC(SoCMini, AutoDoc):
                   "--sys-clk-freq=50e6 --name=femtorv_soc "
                   f"--integrated-rom-size={rom_1_size} "
                   f"--integrated-main-ram-size={ram_1_size} "
-                  f"--integrated-sram-size={sram_1_size} --build")
+                  f"--integrated-sram-size={sram_1_size} "
+                  f"--output-dir={os.path.join(build_dir, 'femtorv_soc') if build_dir else ''} "
+                  f"--build")
         # Add standalone SoC sources.
-        platform.add_source("build/femtorv_soc/gateware/femtorv_soc.v")
-        platform.add_source("build/femtorv_soc/gateware/femtorv_soc_rom.init", copy=True)
+        platform.add_source(
+            f"{os.path.join(build_dir, 'femtorv_soc', 'gateware', 'femtorv_soc.v') if build_dir else 'build/femtorv_soc/gateware/femtorv_soc.v'}")
+        platform.add_source(
+            f"{os.path.join(build_dir, 'femtorv_soc', 'gateware', 'femtorv_soc_rom.init') if build_dir else 'build/femtorv_soc/gateware/femtorv_soc_rom.init'}",
+            copy=True)
 
         # Add CPU sources.
         from litex.soc.cores.cpu.femtorv import FemtoRV
         FemtoRV.add_sources(platform, "standard")
+
 
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
@@ -208,10 +221,15 @@ class BaseSoC(SoCMini, AutoDoc):
                   "--sys-clk-freq=50e6 --n_master_i=2 --name=firev_soc "
                   f"--integrated-rom-size={rom_2_size} "
                   f"--integrated-main-ram-size={ram_2_size} "
-                  f"--integrated-sram-size={sram_2_size} --build")
+                  f"--integrated-sram-size={sram_2_size} "
+                  f"--output-dir={os.path.join(build_dir, 'firev_soc') if build_dir else ''} "
+                  f"--build")
         # Add standalone SoC sources.
-        platform.add_source("build/firev_soc/gateware/firev_soc.v")
-        platform.add_source("build/firev_soc/gateware/firev_soc_rom.init", copy=True)
+        platform.add_source(
+            f"{os.path.join(build_dir, 'firev_soc', 'gateware', 'firev_soc.v') if build_dir else 'build/firev_soc/gateware/firev_soc.v'}")
+        platform.add_source(
+            f"{os.path.join(build_dir, 'firev_soc', 'gateware', 'firev_soc_rom.init') if build_dir else 'build/firev_soc/gateware/firev_soc_rom.init'}",
+            copy=True)
 
         # Add CPU sources.
         from litex.soc.cores.cpu.firev import FireV
@@ -260,88 +278,64 @@ class BaseSoC(SoCMini, AutoDoc):
 
 # Build --------------------------------------------------------------------------------------------
 
+
+
+def extract_config(config_file, config):
+    configuration = {}
+    assert os.path.exists(config_file)
+    with open(config_file, 'r') as f:
+        data = json.load(f)
+    #print(data)
+    config_dict = data[config]
+    #print(config_dict)
+    configuration['shared_ram_size'] = int(config_dict.get('shared_ram'), 0)
+    configuration['sram_1_size']     = int(config_dict.get("core_1").get("sram_s"), 0)
+    configuration['sram_2_size']     = int(config_dict.get("core_2").get("sram_s"), 0)
+    configuration['ram_1_size']      = int(config_dict.get("core_1").get("ram_s"), 0)
+    configuration['ram_2_size']      = int(config_dict.get("core_2").get("ram_s"), 0)
+    configuration['rom_1_size']      = int(config_dict.get("core_1").get("rom_s"), 0)
+    configuration['rom_2_size']      = int(config_dict.get("core_2").get("rom_s"), 0)
+    configuration['sp_1_size']       = int(config_dict.get("core_1").get("sp_s"), 0)
+    configuration['sp_2_size']       = int(config_dict.get("core_2").get("sp_s"), 0)
+    return configuration
+
 def main():
     from litex.soc.integration.soc import LiteXSoCArgumentParser
-    parser = LiteXSoCArgumentParser(description="LiteX standalone SoC generator on De10Lite")
+    parser = LiteXSoCArgumentParser(description="LiteX AMP Dual-Core SoC generator on De10Lite")
     target_group = parser.add_argument_group(title="Target options")
-    target_group.add_argument("--platform",         default=terasic_de10lite.Platform())
-    target_group.add_argument("--toolchain",        default="quartus",   help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
-    target_group.add_argument("--build",            action="store_true", help="Build bitstream.")
-    target_group.add_argument("--load",             action="store_true", help="Load bitstream.")
-    target_group.add_argument("--mux",              default=True,       help="use uart mux.")
-    target_group.add_argument("--shared_ram_size",  default=0x20,        help="shared ram size.")
-    target_group.add_argument("--sram_1_size",      default=0x10000,      help="sram size for the first core")
-    target_group.add_argument("--sram_2_size",      default=0x8000,      help="sram size for the second core.")
-    target_group.add_argument("--ram_1_size",       default=0x0,     help="main ram size for the first core.")
-    target_group.add_argument("--ram_2_size",       default=0x2000,      help="main ram size for the second core.")
-    target_group.add_argument("--rom_1_size",       default=0x8000,      help="rom size for the first core.")
-    target_group.add_argument("--rom_2_size",       default=0x8000,      help="rom size for the second core.")
-    target_group.add_argument("--sp_1_size",        default=0x1000,      help="rom size for the second core.")
-    target_group.add_argument("--sp_2_size",        default=0x100,       help="rom size for the second core.")
-    target_group.add_argument("--sys-clk-freq",     default=50e6,        help="System clock frequency.")
-    target_group.add_argument("--build_dir",        default='build_dir', help="Base output directory.")
-    target_group.add_argument("--config",        default='', help="Configuration name in the json file")
-    target_group.add_argument("--csr_csv",        default="csr.csv", help="File to be used by  Litex tools")
-    
+    target_group.add_argument("--platform", default=terasic_de10lite.Platform())
+    target_group.add_argument("--toolchain", default="quartus",
+                              help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
+    target_group.add_argument("--sys-clk-freq", default=50e6, help="System clock frequency.")
+    target_group.add_argument('--config_file', help='Configuration file', required=True)
+    target_group.add_argument('--config', help='Configuration number', required=True)
+    target_group.add_argument("--build", action="store_true", help="Build bitstream.")
+    target_group.add_argument("--build_dir", default='build_dir', help="Base output directory.")
+    target_group.add_argument("--load", action="store_true", help="Load bitstream.")
+    target_group.add_argument("--mux", default=False, help="use uart mux.")
     builder_args(parser)
     args = parser.parse_args()
 
-    config_file_path = 'configs.json'
-    config_dict = None
+    configuration = extract_config(args.config_file, args.config)
 
-    if(os.path.exists(config_file_path)):
-        with open(config_file_path, 'r') as f:
-            data = json.load(f)
-
-    if(args.config != ""):
-        config_dict = data.get(args.config)
-
-    if config_dict is not None:
-        
-        soc = BaseSoC(
-            platform_name='De10Lite',
-            platform=args.platform,
-            toolchain=args.toolchain,
-            sys_clk_freq=int(float(args.sys_clk_freq)),
-            mux=args.mux,
-            build_dir=args.build_dir,
-            shared_ram_size=int(args.shared_ram_size),
-            sram_1_size=int(config_dict.get("core_1").get("sram_s"), 0),
-            sram_2_size=int(config_dict.get("core_2").get("sram_s"), 0),
-            ram_1_size=int(config_dict.get("core_1").get("ram_s"), 0),
-            ram_2_size=int(config_dict.get("core_2").get("ram_s"), 0),
-            rom_1_size=int(config_dict.get("core_1").get("rom_s"), 0),
-            rom_2_size=int(config_dict.get("core_2").get("rom_s"), 0),
-            sp_1_size=int(config_dict.get("core_1").get("sp_s"), 0),
-            sp_2_size=int(config_dict.get("core_2").get("sp_s"), 0),
-        )
-
-    else:
-        log.warning("Config JSON file not used. Using standard configuration.")
-        time.sleep(2)
-
-        soc = BaseSoC(
-            platform_name='De10Lite',
-            platform=args.platform,
-            toolchain=args.toolchain,
-            sys_clk_freq=int(float(args.sys_clk_freq)),
-            mux=args.mux,
-            build_dir=args.build_dir,
-            shared_ram_size=int(args.shared_ram_size),
-            sram_1_size=int(args.sram_1_size),
-            sram_2_size=int(args.sram_2_size),
-            ram_1_size=int(args.ram_1_size),
-            ram_2_size=int(args.ram_2_size),
-            rom_1_size=int(args.rom_1_size),
-            rom_2_size=int(args.rom_2_size),
-            sp_1_size=int(args.sp_1_size),
-            sp_2_size=int(args.sp_2_size),
-        )
-
-    print(data.get(args.config).get("core_1").get("name"))
-
-    
-
+    soc = BaseSoC(
+        platform_name  = 'De10Lite',
+        platform       = args.platform,
+        toolchain      = args.toolchain,
+        sys_clk_freq   = int(float(args.sys_clk_freq)),
+        mux            = args.mux,
+        build_dir      = args.build_dir,
+        shared_ram_size= configuration['shared_ram_size'],
+        sram_1_size    = configuration['sram_1_size'],
+        sram_2_size    = configuration['sram_2_size'],
+        ram_1_size     = configuration['ram_1_size'],
+        ram_2_size     = configuration['ram_2_size'],
+        rom_1_size     = configuration['rom_1_size'],
+        rom_2_size     = configuration['rom_2_size'],
+        sp_1_size      = configuration['sp_1_size'],
+        sp_2_size      = configuration['sp_2_size'],
+    )
+    args.output_dir = os.path.join(args.build_dir, soc.platform.name) if args.build_dir else ''
     builder = Builder(soc, **builder_argdict(args))
     builder_kwargs = {}
     builder.build(**builder_kwargs, run=args.build)
@@ -350,8 +344,7 @@ def main():
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
-    lxsocdoc.generate_docs(soc, "build/documentation/", project_name="Assymetric Multi-Processing SoC",
-                           author="Joseph W. FAYE")
+    lxsocdoc.generate_docs(soc, f"{os.path.join(args.build_dir, 'documentation') if args.buid_dir else 'documentation'}", project_name="Assymetric Multi-Processing SoC", author="Joseph W. FAYE")
 
 if __name__ == "__main__":
     main()
