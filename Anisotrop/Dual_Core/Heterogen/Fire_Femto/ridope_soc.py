@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Modifications by Joseph Wagane FAYE <joseph-wagane.faye@insa-rennes.fr>
 import litex.soc.doc as lxsocdoc
-
+import time
 from migen import *
 from litex.soc.cores.uart import *
 from litex.build.generic_platform import *
@@ -18,8 +18,23 @@ from litex.soc.integration.doc import AutoDoc
 from litex_boards.platforms import terasic_de10lite
 from litex.soc.integration.soc import SoCBusHandler, SoCRegion, SoCCSRRegion, SoCError
 from litex.build.generic_platform import *
-
+import json
 from litex.build.altera.programmer import USBBlaster
+
+
+import logging
+LOG_LEVEL = logging.WARNING
+LOGFORMAT = "  %(log_color)s%(levelname)-8s%(reset)s | %(log_color)s%(message)s%(reset)s"
+from colorlog import ColoredFormatter
+logging.root.setLevel(LOG_LEVEL)
+formatter = ColoredFormatter(LOGFORMAT)
+stream = logging.StreamHandler()
+stream.setLevel(LOG_LEVEL)
+stream.setFormatter(formatter)
+log = logging.getLogger('pythonConfig')
+log.setLevel(LOG_LEVEL)
+log.addHandler(stream)
+
 
 
 # CRG ----------------------------------------------------------------------------------------------
@@ -71,10 +86,8 @@ class BaseSoC(SoCMini, AutoDoc):
         self.buses = [self.bus]
         # Standalone SoC Generation/Re-Integration -------------------------------------------------
         contents = [i for i in range(16)]
-        # Shared or individual UART.
-        led_0 = platform.request("user_led", 0)
-        led_1 = platform.request("user_led", 1)
 
+        # Shared or individual UART.
         if mux:
             uart_pads = platform.request("arduino_serial")
             uart_sel  = platform.request("user_sw", 0)
@@ -146,11 +159,6 @@ class BaseSoC(SoCMini, AutoDoc):
         # Add CPU sources.
         from litex.soc.cores.cpu.femtorv import FemtoRV
         FemtoRV.add_sources(platform, "standard")
-
-        self.comb += [
-            led_0.eq(uart_pads.tx),
-            led_1.eq(uart_pads.rx),
-        ]
 
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
@@ -272,26 +280,67 @@ def main():
     target_group.add_argument("--sp_2_size",        default=0x100,       help="rom size for the second core.")
     target_group.add_argument("--sys-clk-freq",     default=50e6,        help="System clock frequency.")
     target_group.add_argument("--build_dir",        default='build_dir', help="Base output directory.")
+    target_group.add_argument("--config",        default='', help="Configuration name in the json file")
+    target_group.add_argument("--csr_csv",        default="csr.csv", help="File to be used by  Litex tools")
+    
     builder_args(parser)
     args = parser.parse_args()
 
-    soc = BaseSoC(
-        platform_name='De10Lite',
-        platform=args.platform,
-        toolchain=args.toolchain,
-        sys_clk_freq=int(float(args.sys_clk_freq)),
-        mux=args.mux,
-        build_dir=args.build_dir,
-        shared_ram_size=int(args.shared_ram_size),
-        sram_1_size=int(args.sram_1_size),
-        sram_2_size=int(args.sram_2_size),
-        ram_1_size=int(args.ram_1_size),
-        ram_2_size=int(args.ram_2_size),
-        rom_1_size=int(args.rom_1_size),
-        rom_2_size=int(args.rom_2_size),
-        sp_1_size=int(args.sp_1_size),
-        sp_2_size=int(args.sp_2_size),
-    )
+    config_file_path = 'configs.json'
+    config_dict = None
+
+    if(os.path.exists(config_file_path)):
+        with open(config_file_path, 'r') as f:
+            data = json.load(f)
+
+    if(args.config != ""):
+        config_dict = data.get(args.config)
+
+    if config_dict is not None:
+        
+        soc = BaseSoC(
+            platform_name='De10Lite',
+            platform=args.platform,
+            toolchain=args.toolchain,
+            sys_clk_freq=int(float(args.sys_clk_freq)),
+            mux=args.mux,
+            build_dir=args.build_dir,
+            shared_ram_size=int(args.shared_ram_size),
+            sram_1_size=int(config_dict.get("core_1").get("sram_s"), 0),
+            sram_2_size=int(config_dict.get("core_2").get("sram_s"), 0),
+            ram_1_size=int(config_dict.get("core_1").get("ram_s"), 0),
+            ram_2_size=int(config_dict.get("core_2").get("ram_s"), 0),
+            rom_1_size=int(config_dict.get("core_1").get("rom_s"), 0),
+            rom_2_size=int(config_dict.get("core_2").get("rom_s"), 0),
+            sp_1_size=int(config_dict.get("core_1").get("sp_s"), 0),
+            sp_2_size=int(config_dict.get("core_2").get("sp_s"), 0),
+        )
+
+    else:
+        log.warning("Config JSON file not used. Using standard configuration.")
+        time.sleep(2)
+
+        soc = BaseSoC(
+            platform_name='De10Lite',
+            platform=args.platform,
+            toolchain=args.toolchain,
+            sys_clk_freq=int(float(args.sys_clk_freq)),
+            mux=args.mux,
+            build_dir=args.build_dir,
+            shared_ram_size=int(args.shared_ram_size),
+            sram_1_size=int(args.sram_1_size),
+            sram_2_size=int(args.sram_2_size),
+            ram_1_size=int(args.ram_1_size),
+            ram_2_size=int(args.ram_2_size),
+            rom_1_size=int(args.rom_1_size),
+            rom_2_size=int(args.rom_2_size),
+            sp_1_size=int(args.sp_1_size),
+            sp_2_size=int(args.sp_2_size),
+        )
+
+    print(data.get(args.config).get("core_1").get("name"))
+
+    
 
     builder = Builder(soc, **builder_argdict(args))
     builder_kwargs = {}
