@@ -114,40 +114,42 @@ class BaseSoC(SoCMini, AutoDoc):
         self.submodules.bus2 = SoCBusHandler()
         self.buses.append(self.bus2)
 
-        # Scratchpads Memories Interfaces
-        interface_1 = wishbone.Interface(data_width=self.bus1.data_width, bursting=self.bus1.bursting)
-        interface_2 = wishbone.Interface(data_width=self.bus2.data_width, bursting=self.bus2.bursting)
-        # Scratchpad Memories
-        self.submodules.scratch1 = wishbone.SRAM(sp_1_size, bus=interface_1, init=contents,
-                                                 read_only=False, name='scratchpad1')
-        self.submodules.scratch2 = wishbone.SRAM(sp_2_size, bus=interface_2, init=contents,
-                                                 read_only=False, name='scratchpad2')
-
         # Interfaces to processors
-
         mmap_sp1 = wishbone.Interface()
         mmap_sp2 = wishbone.Interface()
 
-        # Connection to pads
+        # Scratchpad Memories
 
         r = []
 
-        for name, width, direction in mmap_sp1.layout:
-            sig1 = getattr(self.scratch1.bus, name)
-            pad1 = getattr(mmap_sp1, name)
-            if direction == DIR_S_TO_M:
-                r.append(pad1.eq(sig1))
-            else:
-                r.append(sig1.eq(pad1))
+        if sp_1_size > 0:
+            # Scratchpads Memories Interfaces
+            interface_1 = wishbone.Interface(data_width=self.bus1.data_width, bursting=self.bus1.bursting)
+            self.submodules.scratch1 = wishbone.SRAM(sp_1_size, bus=interface_1, init=contents,
+                                                 read_only=False, name='scratchpad1')
+            # Interfaces to processors
+            for name, width, direction in mmap_sp1.layout:
+                sig1 = getattr(self.scratch1.bus, name)
+                pad1 = getattr(mmap_sp1, name)
+                if direction == DIR_S_TO_M:
+                    r.append(pad1.eq(sig1))
+                else:
+                    r.append(sig1.eq(pad1))
 
-        for name, width, direction in mmap_sp2.layout:
-            sig1 = getattr(self.scratch2.bus, name)
-            pad1 = getattr(mmap_sp2, name)
-            if direction == DIR_S_TO_M:
-                r.append(pad1.eq(sig1))
-            else:
-                r.append(sig1.eq(pad1))
+        if sp_2_size > 0:
+            # Scratchpads Memories Interfaces
+            interface_2 = wishbone.Interface(data_width=self.bus2.data_width, bursting=self.bus2.bursting)
+            self.submodules.scratch2 = wishbone.SRAM(sp_2_size, bus=interface_2, init=contents,
+                                                 read_only=False, name='scratchpad2')
 
+            for name, width, direction in mmap_sp2.layout:
+                sig1 = getattr(self.scratch2.bus, name)
+                pad1 = getattr(mmap_sp2, name)
+                if direction == DIR_S_TO_M:
+                    r.append(pad1.eq(sig1))
+                else:
+                    r.append(sig1.eq(pad1))
+        # Connection to pads
         self.comb += r
 
         # FemtoRV SoC.
@@ -310,7 +312,7 @@ def main():
     target_group.add_argument('--config_file', help='Configuration file', required=True)
     target_group.add_argument('--config', help='Configuration number', required=True)
     target_group.add_argument("--build", action="store_true", help="Build bitstream.")
-    target_group.add_argument("--build_dir", default='build_dir', help="Base output directory.")
+    target_group.add_argument("--build_dir", default='', help="Base output directory.")
     target_group.add_argument("--load", action="store_true", help="Load bitstream.")
     target_group.add_argument("--mux", default=False, help="use uart mux.")
     builder_args(parser)
@@ -344,7 +346,7 @@ def main():
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
-    lxsocdoc.generate_docs(soc, f"{os.path.join(args.build_dir, 'documentation') if args.buid_dir else 'documentation'}", project_name="Assymetric Multi-Processing SoC", author="Joseph W. FAYE")
+    lxsocdoc.generate_docs(soc, f"{os.path.join(args.build_dir, 'documentation') if args.build_dir else 'documentation'}", project_name="Assymetric Multi-Processing SoC", author="Joseph W. FAYE")
 
 if __name__ == "__main__":
     main()

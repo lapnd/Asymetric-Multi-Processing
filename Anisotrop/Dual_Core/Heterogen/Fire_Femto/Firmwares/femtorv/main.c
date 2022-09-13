@@ -1,5 +1,4 @@
 // This file is Copyright (c) 2020 Florent Kermarrec <florent@enjoy-digital.fr>
-// Modified by Joseph Faye
 // License: BSD
 
 #include <stdio.h>
@@ -17,61 +16,61 @@
 
 static char *readstr(void)
 {
-    char c[2];
-    static char s[64];
-    static int ptr = 0;
+	char c[2];
+	static char s[64];
+	static int ptr = 0;
 
-    if(readchar_nonblock()) {
-        c[0] = getchar();
-        c[1] = 0;
-        switch(c[0]) {
-            case 0x7f:
-            case 0x08:
-                if(ptr > 0) {
-                    ptr--;
-                    fputs("\x08 \x08", stdout);
-                }
-                break;
-            case 0x07:
-                break;
-            case '\r':
-            case '\n':
-                s[ptr] = 0x00;
-                fputs("\n", stdout);
-                ptr = 0;
-                return s;
-            default:
-                if(ptr >= (sizeof(s) - 1))
-                    break;
-                fputs(c, stdout);
-                s[ptr] = c[0];
-                ptr++;
-                break;
-        }
-    }
+	if(readchar_nonblock()) {
+		c[0] = getchar();
+		c[1] = 0;
+		switch(c[0]) {
+			case 0x7f:
+			case 0x08:
+				if(ptr > 0) {
+					ptr--;
+					fputs("\x08 \x08", stdout);
+				}
+				break;
+			case 0x07:
+				break;
+			case '\r':
+			case '\n':
+				s[ptr] = 0x00;
+				fputs("\n", stdout);
+				ptr = 0;
+				return s;
+			default:
+				if(ptr >= (sizeof(s) - 1))
+					break;
+				fputs(c, stdout);
+				s[ptr] = c[0];
+				ptr++;
+				break;
+		}
+	}
 
-    return NULL;
+	return NULL;
 }
 
 static char *get_token(char **str)
 {
-    char *c, *d;
+	char *c, *d;
 
-    c = (char *)strchr(*str, ' ');
-    if(c == NULL) {
-        d = *str;
-        *str = *str+strlen(*str);
-        return d;
-    }
-    *c = 0;
-    d = *str;
-    *str = c+1;
-    return d;
+	c = (char *)strchr(*str, ' ');
+	if(c == NULL) {
+		d = *str;
+		*str = *str+strlen(*str);
+		return d;
+	}
+	*c = 0;
+	d = *str;
+	*str = c+1;
+	return d;
 }
 
 static void prompt(void)
 {
-    printf("\e[92;1mlitex-femtorv-app\e[0m> ");
+	printf("\e[92;1mlitex-femtorv-app\e[0m> ");
 }
 
 /*-----------------------------------------------------------------------*/
@@ -80,14 +79,17 @@ static void prompt(void)
 
 static void help(void)
 {
-    puts("\nLiteX minimal demo app built "__DATE__" "__TIME__"\n");
-    puts("Available commands:");
-    puts("help               - Show this command");
-    puts("reboot             - Reboot CPU");
+	puts("\nLiteX minimal demo app built "__DATE__" "__TIME__"\n");
+	puts("Available commands:");
+	puts("help               - Show this command");
+	puts("reboot             - Reboot CPU");
 #ifdef CSR_LEDS_BASE
-    puts("led                - Led demo");
+	puts("led                - Led demo");
 #endif
-    puts("sum              - Synchronized sum");
+	puts("sum             - Sum demo");
+#ifdef WITH_CXX
+	puts("hellocpp           - Hello C++");
+#endif
 }
 
 /*-----------------------------------------------------------------------*/
@@ -96,7 +98,7 @@ static void help(void)
 
 static void reboot_cmd(void)
 {
-    ctrl_reset_write(1);
+	ctrl_reset_write(1);
 }
 
 #ifdef CSR_LEDS_BASE
@@ -131,13 +133,24 @@ static void led_cmd(void)
 }
 #endif
 
+
 extern void sum(void);
 
 static void sum_cmd(void)
 {
-    sum();
+	printf("Sum demo...\n");
+	sum();
 }
 
+#ifdef WITH_CXX
+extern void hellocpp(void);
+
+static void hellocpp_cmd(void)
+{
+	printf("Hello C++ demo...\n");
+	hellocpp();
+}
+#endif
 
 /*-----------------------------------------------------------------------*/
 /* Console service / Main                                                */
@@ -145,41 +158,47 @@ static void sum_cmd(void)
 
 static void console_service(void)
 {
-    char *str;
-    char *token;
+	char *str;
+	char *token;
 
-    str = readstr();
-    if(str == NULL) return;
-    token = get_token(&str);
-    if(strcmp(token, "help") == 0)
-        help();
-    else if(strcmp(token, "reboot") == 0)
-        reboot_cmd();
+	str = readstr();
+	if(str == NULL) return;
+	token = get_token(&str);
+
+	if(strcmp(token, "help") == 0)
+		help();
+	else if(strcmp(token, "reboot") == 0)
+		reboot_cmd();
+
+    else if(strcmp(token, "sum") == 0)
+		sum_cmd();
+
 #ifdef CSR_LEDS_BASE
-        else if(strcmp(token, "led") == 0)
+	else if(strcmp(token, "led") == 0)
 		led_cmd();
 #endif
 
-    else if(strcmp(token, "sum") == 0)
-        sum_cmd();
-
-    prompt();
+#ifdef WITH_CXX
+	else if(strcmp(token, "hellocpp") == 0)
+		hellocpp_cmd();
+#endif
+	prompt();
 }
 
 int main(void)
 {
 #ifdef CONFIG_CPU_HAS_INTERRUPT
-    irq_setmask(0);
+	irq_setmask(0);
 	irq_setie(1);
 #endif
-    uart_init();
+	uart_init();
 
-    help();
-    prompt();
+	help();
+	prompt();
 
-    while(1) {
-        console_service();
-    }
+	while(1) {
+		console_service();
+	}
 
-    return 0;
+	return 0;
 }

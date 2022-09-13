@@ -55,7 +55,7 @@ SECTIONS
 		. = ALIGN(8);
 		_ebss = .;
 		_end = .;
-	} > main_ram
+	} > sram AT > main_ram
 
 	joseph :
         	{
