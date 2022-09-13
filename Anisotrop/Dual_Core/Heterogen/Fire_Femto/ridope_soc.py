@@ -241,15 +241,17 @@ class BaseSoC(SoCMini, AutoDoc):
         mmap_wb = wishbone.Interface()
         self.specials += Instance("firev_soc",
             # Clk/Rst.
+
             i_clk     = ClockSignal("sys"),
             i_rst     = ResetSignal("sys"),
 
             # UART.
+
             o_uart_tx = uart_mux_pads[1].tx,
             i_uart_rx = uart_mux_pads[1].rx,
 
-
             # MMAP.
+
             o_mmap_m_0_adr   = mmap_wb.adr[:24], # CHECKME/FIXME: Base address.
             o_mmap_m_0_dat_w = mmap_wb.dat_w,
             i_mmap_m_0_dat_r = mmap_wb.dat_r,
@@ -279,8 +281,6 @@ class BaseSoC(SoCMini, AutoDoc):
         self.bus.add_master(master=mmap_wb)
 
 # Build --------------------------------------------------------------------------------------------
-
-
 
 def extract_config(config_file, config):
     configuration = {}
