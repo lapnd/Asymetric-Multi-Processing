@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-# Copyright (c) 2022 Florent Kermarrec <florent@enjoy-digital.fr>
+# Copyright (c) 2022 Joseph Wagane FAYE <joseph-wagane.faye@insa-rennes.fr
 # SPDX-License-Identifier: BSD-2-Clause
-# Modifications by Joseph Wagane FAYE <joseph-wagane.faye@insa-rennes.fr>
+import argparse
 import litex.soc.doc as lxsocdoc
-
+import time
 from migen import *
 from litex.soc.cores.uart import *
+from litex.build.generic_platform import *
 from litex.soc.cores.clock import *
 from litex.soc.cores.led import LedChaser
 from litex.soc.interconnect import csr_bus
@@ -16,8 +17,24 @@ from litex.soc.integration.soc_core import *
 from litex.soc.integration.doc import AutoDoc
 from litex_boards.platforms import terasic_de10lite
 from litex.soc.integration.soc import SoCBusHandler, SoCRegion, SoCCSRRegion, SoCError
-
+from litex.build.generic_platform import *
+import json
 from litex.build.altera.programmer import USBBlaster
+
+
+#import logging
+#LOG_LEVEL = logging.WARNING
+#LOGFORMAT = "  %(log_color)s%(levelname)-8s%(reset)s | %(log_color)s%(message)s%(reset)s"
+#from colorlog import ColoredFormatter
+#logging.root.setLevel(LOG_LEVEL)
+#formatter = ColoredFormatter(LOGFORMAT)
+#stream = logging.StreamHandler()
+#stream.setLevel(LOG_LEVEL)
+#stream.setFormatter(formatter)
+#log = logging.getLogger('pythonConfig')
+#log.setLevel(LOG_LEVEL)
+#log.addHandler(stream)
+
 
 
 # CRG ----------------------------------------------------------------------------------------------
@@ -39,21 +56,29 @@ class _CRG(Module, AutoDoc):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCMini, AutoDoc):
-    mem_map = {**SoCCore.mem_map, **{
+    mem_map = {
         "csr": 0x10000000,
-    }}
-    def __init__(self, platform, platform_name, mux, toolchain="vivado",
-                 sys_clk_freq=int(50e6), with_led_chaser=True):
+        "rom": 0x00000000,
+        "sram": 0x01000000,
+        "main_ram": 0x01010000,
+    }
+    def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='',
+                 sram_1_size=0x1000, ram_1_size=0x1000, ram_2_size=0x1000, sram_2_size=0x1000,
+                 rom_1_size=0x1000, rom_2_size=0x1000, sp_1_size=0x1000, sp_2_size=0x1000,
+                 shared_ram_size=0x1000, sys_clk_freq=int(50e6), with_led_chaser=False):
 
         # CRG --------------------------------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
+
+        platform.add_extension([("arduino_serial", 0,
+                                    Subsignal("tx", Pins("AA19"), IOStandard("3.3-V LVTTL")), # Arduino IO11
+                                    Subsignal("rx", Pins("Y19"), IOStandard("3.3-V LVTTL"))  # Arduino IO12
+                                ),])
 
         # SoCMini ----------------------------------------------------------------------------------
         SoCMini.__init__(self, platform, sys_clk_freq,
                          ident="LiteX standalone SoC generator on {}".format(platform_name))
 
-        # JTAGBone ---------------------------------------------------------------------------------
-        self.add_jtagbone()
 
         # Leds -------------------------------------------------------------------------------------
         if with_led_chaser:
@@ -64,20 +89,23 @@ class BaseSoC(SoCMini, AutoDoc):
         self.buses = [self.bus]
         # Standalone SoC Generation/Re-Integration -------------------------------------------------
         contents = [i for i in range(16)]
+
         # Shared or individual UART.
 
         if mux:
+            #uart_pads = platform.request("arduino_serial")
             uart_pads = platform.request("serial", 0)
             uart_sel  = platform.request("user_sw", 0)
             uart_mux_pads = [UARTPads() for _ in range(2)]
             uart_mux      = UARTMultiplexer(uart_mux_pads, uart_pads)
             self.comb += uart_mux.sel.eq(uart_sel)
             self.submodules += uart_mux
+
         else:
             uart_mux_pads =[platform.request("serial", 0), platform.request("serial", 1)]
 
         # Shared RAM.
-        self.add_ram("shared_ram", 0x0000_0000, 0x00001000, contents=contents)
+        self.add_ram("shared_ram", 0x0000_0000, shared_ram_size, contents=contents)
 
         # Buses
         self.submodules.bus1 = SoCBusHandler()
@@ -85,57 +113,70 @@ class BaseSoC(SoCMini, AutoDoc):
         self.submodules.bus2 = SoCBusHandler()
         self.buses.append(self.bus2)
 
-        # Scratchpads Memories Interfaces
-        interface_1 = wishbone.Interface(data_width=self.bus1.data_width, bursting=self.bus1.bursting)
-        interface_2 = wishbone.Interface(data_width=self.bus2.data_width, bursting=self.bus2.bursting)
-        # Scratchpad Memories
-        self.submodules.scratch1 = wishbone.SRAM(0x1000, bus=interface_1, init=contents, read_only=False, name='scratchpad1')
-        self.submodules.scratch2 = wishbone.SRAM(0x1000, bus=interface_2, init=contents, read_only=False, name='scratchpad2')
-
         # Interfaces to processors
-
         mmap_sp1 = wishbone.Interface()
         mmap_sp2 = wishbone.Interface()
 
-        # Connection to pads
+        # Scratchpad Memories
 
         r = []
 
-        for name, width, direction in mmap_sp1.layout:
-            sig1 = getattr(self.scratch1.bus, name)
-            pad1 = getattr(mmap_sp1, name)
-            if direction == DIR_S_TO_M:
-                r.append(pad1.eq(sig1))
-            else:
-                r.append(sig1.eq(pad1))
+        if sp_1_size > 0:
+            # Scratchpads Memories Interfaces
+            interface_1 = wishbone.Interface(data_width=self.bus1.data_width, bursting=self.bus1.bursting)
+            self.submodules.scratch1 = wishbone.SRAM(sp_1_size, bus=interface_1, init=contents,
+                                                 read_only=False, name='scratchpad1')
+            # Interfaces to processors
+            for name, width, direction in mmap_sp1.layout:
+                sig1 = getattr(self.scratch1.bus, name)
+                pad1 = getattr(mmap_sp1, name)
+                if direction == DIR_S_TO_M:
+                    r.append(pad1.eq(sig1))
+                else:
+                    r.append(sig1.eq(pad1))
 
-        for name, width, direction in mmap_sp2.layout:
-            sig1 = getattr(self.scratch2.bus, name)
-            pad1 = getattr(mmap_sp2, name)
-            if direction == DIR_S_TO_M:
-                r.append(pad1.eq(sig1))
-            else:
-                r.append(sig1.eq(pad1))
+        if sp_2_size > 0:
+            # Scratchpads Memories Interfaces
+            interface_2 = wishbone.Interface(data_width=self.bus2.data_width, bursting=self.bus2.bursting)
+            self.submodules.scratch2 = wishbone.SRAM(sp_2_size, bus=interface_2, init=contents,
+                                                 read_only=False, name='scratchpad2')
 
+            for name, width, direction in mmap_sp2.layout:
+                sig1 = getattr(self.scratch2.bus, name)
+                pad1 = getattr(mmap_sp2, name)
+                if direction == DIR_S_TO_M:
+                    r.append(pad1.eq(sig1))
+                else:
+                    r.append(sig1.eq(pad1))
+        # Connection to pads
         self.comb += r
 
-        # FemtoRV SoC.
+        # FemtoRV SoC 1.
         # ------------
         # Generate standalone SoC.
-        os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
-                  "--sys-clk-freq=100e6 --n-master-inter=2 --name=femtorv_soc_0 --integrated-main-ram-size=0x4000 "
-                  "--build")
+        soc_name = 'femtorv_soc_0'
+        os.system("litex_soc_gen --cpu-type=femtorv --n_master_i=2 --bus-standard=wishbone "
+                  f"--sys-clk-freq=50e6 --name={soc_name} "
+                  f"--integrated-rom-size={rom_1_size} "
+                  f"--integrated-main-ram-size={ram_1_size} "
+                  f"--integrated-sram-size={sram_1_size} "
+                  f"--output-dir={os.path.join(build_dir, soc_name) if build_dir else ''} "
+                  f"--build")
         # Add standalone SoC sources.
-        platform.add_source("build/femtorv_soc_0/gateware/femtorv_soc_0.v")
-        platform.add_source("build/femtorv_soc_0/gateware/femtorv_soc_0_rom.init", copy=True)
+        platform.add_source(
+            f"{os.path.join(build_dir, soc_name, 'gateware', f'{soc_name}.v') if build_dir else f'build/{soc_name}/gateware/{soc_name}.v'}")
+        platform.add_source(
+            f"{os.path.join(build_dir, soc_name, 'gateware', f'{soc_name}_rom.init') if build_dir else f'build/{soc_name}/gateware/{soc_name}_rom.init'}",
+            copy=True)
 
         # Add CPU sources.
         from litex.soc.cores.cpu.femtorv import FemtoRV
         FemtoRV.add_sources(platform, "standard")
 
+
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
-        self.specials += Instance("femtorv_soc_0",
+        self.specials += Instance(f"{soc_name}",
             # Clk/Rst.
             i_clk     = ClockSignal("sys"),
             i_rst     = ResetSignal("sys"),
@@ -172,39 +213,44 @@ class BaseSoC(SoCMini, AutoDoc):
         )
         self.bus.add_master(master=mmap_wb)
 
-        # Litescope.
-        from litescope import LiteScopeAnalyzer
-        self.submodules.analyzer = LiteScopeAnalyzer([mmap_wb],
-            depth        = 512,
-            clock_domain = "sys",
-            samplerate   = sys_clk_freq,
-            csr_csv      = "analyzer.csv"
-        )
-
-        self.submodules.bus2 = SoCBusHandler()
-        # FireV SoC.
+        # FemtorV SoC 2.
         # ----------
+
         # Generate standalone SoC.
+        soc_name = 'femtorv_soc_1'
         os.system("litex_soc_gen --cpu-type=femtorv --bus-standard=wishbone "
-                  "--sys-clk-freq=100e6 --n-master-inter=2 --name=femtorv_soc_1 --integrated-main-ram-size=0x4000 "
-                  "--build")
+                  f"--sys-clk-freq=50e6 --n_master_i=2 --name={soc_name} "
+                  f"--integrated-rom-size={rom_2_size} "
+                  f"--integrated-main-ram-size={ram_2_size} "
+                  f"--integrated-sram-size={sram_2_size} "
+                  f"--output-dir={os.path.join(build_dir, soc_name) if build_dir else ''} "
+                  f"--build")
         # Add standalone SoC sources.
-        platform.add_source("build/femtorv_soc_1/gateware/femtorv_soc_1.v")
-        platform.add_source("build/femtorv_soc_1/gateware/femtorv_soc_1_rom.init", copy=True)
+        platform.add_source(
+            f"{os.path.join(build_dir, {soc_name}, 'gateware', f'{soc_name}.v') if build_dir else f'build/{soc_name}/gateware/{soc_name}.v'}")
+        platform.add_source(
+            f"{os.path.join(build_dir, {soc_name}, 'gateware', f'{soc_name}_rom.init') if build_dir else f'build/{soc_name}/gateware/{soc_name}_rom.init'}",
+            copy=True)
+
+        # Add CPU sources.
+        from litex.soc.cores.cpu.femtorv import FemtoRV
+        FemtoRV.add_sources(platform, "standard")
 
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
-        self.specials += Instance("femtorv_soc_1",
+        self.specials += Instance(f"{soc_name}",
             # Clk/Rst.
+
             i_clk     = ClockSignal("sys"),
             i_rst     = ResetSignal("sys"),
 
             # UART.
+
             o_uart_tx = uart_mux_pads[1].tx,
             i_uart_rx = uart_mux_pads[1].rx,
 
-
             # MMAP.
+
             o_mmap_m_0_adr   = mmap_wb.adr[:24], # CHECKME/FIXME: Base address.
             o_mmap_m_0_dat_w = mmap_wb.dat_w,
             i_mmap_m_0_dat_r = mmap_wb.dat_r,
@@ -235,27 +281,62 @@ class BaseSoC(SoCMini, AutoDoc):
 
 # Build --------------------------------------------------------------------------------------------
 
+def extract_config(config_file, config):
+    configuration = {}
+    assert os.path.exists(config_file)
+    with open(config_file, 'r') as f:
+        data = json.load(f)
+    #print(data)
+    config_dict = data[config]
+    #print(config_dict)
+    configuration['shared_ram_size'] = int(config_dict.get('shared_ram'), 0)
+    configuration['sram_1_size']     = int(config_dict.get("core_1").get("sram_s"), 0)
+    configuration['sram_2_size']     = int(config_dict.get("core_2").get("sram_s"), 0)
+    configuration['ram_1_size']      = int(config_dict.get("core_1").get("ram_s"), 0)
+    configuration['ram_2_size']      = int(config_dict.get("core_2").get("ram_s"), 0)
+    configuration['rom_1_size']      = int(config_dict.get("core_1").get("rom_s"), 0)
+    configuration['rom_2_size']      = int(config_dict.get("core_2").get("rom_s"), 0)
+    configuration['sp_1_size']       = int(config_dict.get("core_1").get("sp_s"), 0)
+    configuration['sp_2_size']       = int(config_dict.get("core_2").get("sp_s"), 0)
+    return configuration
+
 def main():
     from litex.soc.integration.soc import LiteXSoCArgumentParser
-    parser = LiteXSoCArgumentParser(description="LiteX standalone SoC generator on De10Lite")
+    parser = LiteXSoCArgumentParser(description="LiteX AMP Dual-Core SoC generator on De10Lite")
     target_group = parser.add_argument_group(title="Target options")
     target_group.add_argument("--platform", default=terasic_de10lite.Platform())
-    target_group.add_argument("--toolchain",    default="quartus",    help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
-    target_group.add_argument("--build",        action="store_true", help="Build bitstream.")
-    target_group.add_argument("--load",         action="store_true", help="Load bitstream.")
-    target_group.add_argument("--mux",        default=False, help="use uart mux")
-    target_group.add_argument("--sys-clk-freq", default=50e6,       help="System clock frequency.")
+    target_group.add_argument("--toolchain", default="quartus",
+                              help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
+    target_group.add_argument("--sys-clk-freq", default=50e6, help="System clock frequency.")
+    target_group.add_argument('--config_file', help='Configuration file', required=True)
+    target_group.add_argument('--config', help='Configuration number', required=True)
+    target_group.add_argument("--build", action="store_true", help="Build bitstream.")
+    target_group.add_argument("--build_dir", default='', help="Base output directory.")
+    target_group.add_argument("--load", action="store_true", help="Load bitstream.")
+    target_group.add_argument("--mux", default=False, help="use uart mux.")
     builder_args(parser)
     args = parser.parse_args()
 
-    soc = BaseSoC(
-        platform_name='De10Lite',
-        platform=args.platform,
-        toolchain=args.toolchain,
-        sys_clk_freq=int(float(args.sys_clk_freq)),
-        mux=args.mux
-    )
+    configuration = extract_config(args.config_file, args.config)
 
+    soc = BaseSoC(
+        platform_name  = 'De10Lite',
+        platform       = args.platform,
+        toolchain      = args.toolchain,
+        sys_clk_freq   = int(float(args.sys_clk_freq)),
+        mux            = args.mux,
+        build_dir      = args.build_dir,
+        shared_ram_size= configuration['shared_ram_size'],
+        sram_1_size    = configuration['sram_1_size'],
+        sram_2_size    = configuration['sram_2_size'],
+        ram_1_size     = configuration['ram_1_size'],
+        ram_2_size     = configuration['ram_2_size'],
+        rom_1_size     = configuration['rom_1_size'],
+        rom_2_size     = configuration['rom_2_size'],
+        sp_1_size      = configuration['sp_1_size'],
+        sp_2_size      = configuration['sp_2_size'],
+    )
+    args.output_dir = os.path.join(args.build_dir, soc.platform.name) if args.build_dir else ''
     builder = Builder(soc, **builder_argdict(args))
     builder_kwargs = {}
     builder.build(**builder_kwargs, run=args.build)
@@ -264,9 +345,7 @@ def main():
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
-    lxsocdoc.generate_docs(soc, "build/documentation/", project_name="Assymetric Multi-Processing SoC",
-                           author="Joseph W. FAYE")
-
+    lxsocdoc.generate_docs(soc, f"{os.path.join(args.build_dir, 'documentation') if args.build_dir else 'documentation'}", project_name="Assymetric Multi-Processing SoC", author="Joseph W. FAYE")
 
 if __name__ == "__main__":
     main()
