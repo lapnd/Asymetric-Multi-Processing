@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 # Copyright (c) 2022 Joseph Wagane FAYE <joseph-wagane.faye@insa-rennes.fr
-# Copyright (c) 2022 Lucas Esteves ROCHA <@insa-rennes.fr
 # SPDX-License-Identifier: BSD-2-Clause
 import argparse
 import litex.soc.doc as lxsocdoc
@@ -21,22 +20,6 @@ from litex.soc.integration.soc import SoCBusHandler, SoCRegion, SoCCSRRegion, So
 from litex.build.generic_platform import *
 import json
 from litex.build.altera.programmer import USBBlaster
-
-
-#import logging
-#LOG_LEVEL = logging.WARNING
-#LOGFORMAT = "  %(log_color)s%(levelname)-8s%(reset)s | %(log_color)s%(message)s%(reset)s"
-#from colorlog import ColoredFormatter
-#logging.root.setLevel(LOG_LEVEL)
-#formatter = ColoredFormatter(LOGFORMAT)
-#stream = logging.StreamHandler()
-#stream.setLevel(LOG_LEVEL)
-#stream.setFormatter(formatter)
-#log = logging.getLogger('pythonConfig')
-#log.setLevel(LOG_LEVEL)
-#log.addHandler(stream)
-
-
 
 # CRG ----------------------------------------------------------------------------------------------
 
@@ -157,17 +140,17 @@ class BaseSoC(SoCMini, AutoDoc):
         # Generate standalone SoC.
         soc_name = 'femtorv_soc'
         os.system("litex_soc_gen --cpu-type=femtorv --n_master_i=2 --bus-standard=wishbone "
-                  "--sys-clk-freq=50e6 --name=femtorv_soc "
+                  f"--sys-clk-freq=50e6 --name={soc_name} "
                   f"--integrated-rom-size={rom_1_size} "
                   f"--integrated-main-ram-size={ram_1_size} "
                   f"--integrated-sram-size={sram_1_size} "
-                  f"--output-dir={os.path.join(build_dir, 'femtorv_soc') if build_dir else ''} "
+                  f"--output-dir={os.path.join(build_dir, soc_name) if build_dir else ''} "
                   f"--build")
         # Add standalone SoC sources.
         platform.add_source(
-            f"{os.path.join(build_dir, 'femtorv_soc', 'gateware', 'femtorv_soc.v') if build_dir else 'build/femtorv_soc/gateware/femtorv_soc.v'}")
+            f"{os.path.join(build_dir, f'{soc_name}', 'gateware', f'{soc_name}.v') if build_dir else f'build/{soc_name}/gateware/{soc_name}.v'}")
         platform.add_source(
-            f"{os.path.join(build_dir, 'femtorv_soc', 'gateware', 'femtorv_soc_rom.init') if build_dir else 'build/femtorv_soc/gateware/femtorv_soc_rom.init'}",
+            f"{os.path.join(build_dir, f'{soc_name}',  'gateware', f'{soc_name}_rom.init') if build_dir else f'build/{soc_name}/gateware/{soc_name}_rom.init'}",
             copy=True)
 
         # Add CPU sources.
@@ -177,7 +160,7 @@ class BaseSoC(SoCMini, AutoDoc):
 
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
-        self.specials += Instance("femtorv_soc",
+        self.specials += Instance(f"{soc_name}",
             # Clk/Rst.
             i_clk     = ClockSignal("sys"),
             i_rst     = ResetSignal("sys"),
@@ -220,17 +203,17 @@ class BaseSoC(SoCMini, AutoDoc):
         # Generate standalone SoC.
         soc_name = 'firev_soc'
         os.system("litex_soc_gen --cpu-type=firev --bus-standard=wishbone "
-                  "--sys-clk-freq=50e6 --n_master_i=2 --name=firev_soc "
+                  f"--sys-clk-freq=50e6 --n_master_i=2 --name={soc_name} "
                   f"--integrated-rom-size={rom_2_size} "
                   f"--integrated-main-ram-size={ram_2_size} "
                   f"--integrated-sram-size={sram_2_size} "
-                  f"--output-dir={os.path.join(build_dir, 'firev_soc') if build_dir else ''} "
+                  f"--output-dir={os.path.join(build_dir, soc_name) if build_dir else ''} "
                   f"--build")
         # Add standalone SoC sources.
         platform.add_source(
-            f"{os.path.join(build_dir, 'firev_soc', 'gateware', 'firev_soc.v') if build_dir else 'build/firev_soc/gateware/firev_soc.v'}")
+            f"{os.path.join(build_dir, f'{soc_name}', 'gateware', f'{soc_name}.v') if build_dir else f'build/{soc_name}/gateware/{soc_name}.v'}")
         platform.add_source(
-            f"{os.path.join(build_dir, 'firev_soc', 'gateware', 'firev_soc_rom.init') if build_dir else 'build/firev_soc/gateware/firev_soc_rom.init'}",
+            f"{os.path.join(build_dir, f'{soc_name}', 'gateware', f'{soc_name}_rom.init') if build_dir else f'build/{soc_name}/gateware/{soc_name}_rom.init'}",
             copy=True)
 
         # Add CPU sources.
@@ -239,7 +222,7 @@ class BaseSoC(SoCMini, AutoDoc):
 
         # Do standalone SoC instance.
         mmap_wb = wishbone.Interface()
-        self.specials += Instance("firev_soc",
+        self.specials += Instance(f"{soc_name}",
             # Clk/Rst.
 
             i_clk     = ClockSignal("sys"),
@@ -319,7 +302,7 @@ def main():
     args = parser.parse_args()
 
     configuration = extract_config(args.config_file, args.config)
-
+    print(f"Build directory : {args.build_dir}")
     soc = BaseSoC(
         platform_name  = 'De10Lite',
         platform       = args.platform,
@@ -346,7 +329,7 @@ def main():
         prog = soc.platform.create_programmer()
         prog.load_bitstream(builder.get_bitstream_filename(mode="sram"))
 
-    lxsocdoc.generate_docs(soc, f"{os.path.join(args.build_dir, 'documentation') if args.build_dir else 'documentation'}", project_name="Assymetric Multi-Processing SoC", author="Joseph W. FAYE")
+    lxsocdoc.generate_docs(soc, f"{os.path.join(args.build_dir, 'documentation') if args.build_dir else 'build/documentation'}", project_name="Assymetric Multi-Processing SoC", author="Joseph W. FAYE")
 
 if __name__ == "__main__":
     main()
