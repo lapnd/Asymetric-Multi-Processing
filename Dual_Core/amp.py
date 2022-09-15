@@ -275,7 +275,7 @@ def extract_config(config_file, config):
     assert os.path.exists(config_file)
     with open(config_file, 'r') as f:
         data = json.load(f)
-    #print(data)
+    print(data)
     config_dict = data[config]
     #print(config_dict)
     configuration['shared_ram_size'] = int(config_dict.get('shared_ram'), 0)
