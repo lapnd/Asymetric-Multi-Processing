@@ -50,7 +50,7 @@ class BaseSoC(SoCMini, AutoDoc):
     def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='',
                  name_1='firev', name_2='firev', sram_1_size=0x1000, ram_1_size=0x1000,
                  ram_2_size=0x1000, sram_2_size=0x1000, rom_1_size=0x1000, rom_2_size=0x1000,
-                 sp_1_size=0x1000, sp_2_size=0x1000, shared_ram_size=0x1000,
+                 sp_1_size=0x1000, sp_2_size=0x1000, shared_ram_size=0x1000, bus_data_width= 16,
                  sys_clk_freq=int(50e6), with_led_chaser=False):
 
         if name_1 == name_2:
@@ -69,7 +69,7 @@ class BaseSoC(SoCMini, AutoDoc):
                                 ),])
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq,
+        SoCMini.__init__(self, platform, sys_clk_freq, bus_data_width=bus_data_width,
                          ident="LiteX standalone SoC generator on {}".format(platform_name))
 
 
@@ -101,9 +101,9 @@ class BaseSoC(SoCMini, AutoDoc):
         self.add_ram("shared_ram", 0x0000_0000, shared_ram_size, contents=contents)
 
         # Buses
-        self.submodules.bus1 = SoCBusHandler()
+        self.submodules.bus1 = SoCBusHandler(data_width=bus_data_width)
         self.buses.append(self.bus1)
-        self.submodules.bus2 = SoCBusHandler()
+        self.submodules.bus2 = SoCBusHandler(data_width=bus_data_width)
         self.buses.append(self.bus2)
 
         # Interfaces to processors
@@ -295,16 +295,16 @@ def main():
     from litex.soc.integration.soc import LiteXSoCArgumentParser
     parser = LiteXSoCArgumentParser(description="LiteX AMP Dual-Core SoC generator on De10Lite")
     target_group = parser.add_argument_group(title="Target options")
-    target_group.add_argument("--platform", default=terasic_de10lite.Platform())
-    target_group.add_argument("--toolchain", default="quartus",
-                              help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
-    target_group.add_argument("--sys-clk-freq", default=50e6, help="System clock frequency.")
-    target_group.add_argument('--config_file', help='Configuration file', required=True)
-    target_group.add_argument('--config', help='Configuration number', required=True)
-    target_group.add_argument("--build", action="store_true", help="Build bitstream.")
-    target_group.add_argument("--build_dir", default='', help="Base output directory.")
-    target_group.add_argument("--load", action="store_true", help="Load bitstream.")
-    target_group.add_argument("--mux", default=False, help="use uart mux.")
+    target_group.add_argument("--platform",       default=terasic_de10lite.Platform())
+    target_group.add_argument("--toolchain",      default="quartus",           help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
+    target_group.add_argument("--sys-clk-freq",   default=50e6,                help="System clock frequency.")
+    target_group.add_argument("--bus_data_width", default=16,                  help="Super SoC bus data width.")
+    target_group.add_argument('--config_file',    help='Configuration file',   required=True)
+    target_group.add_argument('--config',         help='Configuration number', required=True)
+    target_group.add_argument("--build",          action="store_true",         help="Build bitstream.")
+    target_group.add_argument("--build_dir",      default='',                  help="Base output directory.")
+    target_group.add_argument("--load",           action="store_true",         help="Load bitstream.")
+    target_group.add_argument("--mux",            default=False,               help="use uart mux.")
     builder_args(parser)
     args = parser.parse_args()
 
@@ -315,11 +315,12 @@ def main():
         platform       = args.platform,
         toolchain      = args.toolchain,
         sys_clk_freq   = int(float(args.sys_clk_freq)),
+        bus_data_width=  int(args.bus_data_width),
         mux            = args.mux,
         build_dir      = args.build_dir,
         shared_ram_size= configuration['shared_ram_size'],
-        name_1         =configuration['name_1'],
-        name_2         =configuration['name_2'],
+        name_1         = configuration['name_1'],
+        name_2         = configuration['name_2'],
         sram_1_size    = configuration['sram_1_size'],
         sram_2_size    = configuration['sram_2_size'],
         ram_1_size     = configuration['ram_1_size'],
