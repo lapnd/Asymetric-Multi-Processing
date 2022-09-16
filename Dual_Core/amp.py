@@ -295,16 +295,16 @@ def main():
     from litex.soc.integration.soc import LiteXSoCArgumentParser
     parser = LiteXSoCArgumentParser(description="LiteX AMP Dual-Core SoC generator on De10Lite")
     target_group = parser.add_argument_group(title="Target options")
-    target_group.add_argument("--platform", default=terasic_de10lite.Platform())
-    target_group.add_argument("--toolchain", default="quartus",
-                              help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
-    target_group.add_argument("--sys-clk-freq", default=50e6, help="System clock frequency.")
-    target_group.add_argument('--config_file', help='Configuration file', required=True)
-    target_group.add_argument('--config', help='Configuration number', required=True)
-    target_group.add_argument("--build", action="store_true", help="Build bitstream.")
-    target_group.add_argument("--build_dir", default='', help="Base output directory.")
-    target_group.add_argument("--load", action="store_true", help="Load bitstream.")
-    target_group.add_argument("--mux", default=False, help="use uart mux.")
+    target_group.add_argument("--platform",       default=terasic_de10lite.Platform())
+    target_group.add_argument("--toolchain",      default="quartus",           help="FPGA toolchain (vivado, symbiflow or yosys+nextpnr).")
+    target_group.add_argument("--sys-clk-freq",   default=50e6,                help="System clock frequency.")
+    target_group.add_argument("--bus_data_width", default=16,                  help="Super SoC bus data width.")
+    target_group.add_argument('--config_file',    help='Configuration file',   required=True)
+    target_group.add_argument('--config',         help='Configuration number', required=True)
+    target_group.add_argument("--build",          action="store_true",         help="Build bitstream.")
+    target_group.add_argument("--build_dir",      default='',                  help="Base output directory.")
+    target_group.add_argument("--load",           action="store_true",         help="Load bitstream.")
+    target_group.add_argument("--mux",            default=False,               help="use uart mux.")
     builder_args(parser)
     args = parser.parse_args()
 
@@ -315,6 +315,7 @@ def main():
         platform       = args.platform,
         toolchain      = args.toolchain,
         sys_clk_freq   = int(float(args.sys_clk_freq)),
+        bus_data_width= int(args.bus_data_width),
         mux            = args.mux,
         build_dir      = args.build_dir,
         shared_ram_size= configuration['shared_ram_size'],
