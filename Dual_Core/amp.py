@@ -50,7 +50,7 @@ class BaseSoC(SoCMini, AutoDoc):
     def __init__(self, platform, platform_name, mux, toolchain="vivado", build_dir='',
                  name_1='firev', name_2='firev', sram_1_size=0x1000, ram_1_size=0x1000,
                  ram_2_size=0x1000, sram_2_size=0x1000, rom_1_size=0x1000, rom_2_size=0x1000,
-                 sp_1_size=0x1000, sp_2_size=0x1000, shared_ram_size=0x1000,
+                 sp_1_size=0x1000, sp_2_size=0x1000, shared_ram_size=0x1000, bus_data_width= 16,
                  sys_clk_freq=int(50e6), with_led_chaser=False):
 
         if name_1 == name_2:
@@ -69,7 +69,7 @@ class BaseSoC(SoCMini, AutoDoc):
                                 ),])
 
         # SoCMini ----------------------------------------------------------------------------------
-        SoCMini.__init__(self, platform, sys_clk_freq,
+        SoCMini.__init__(self, platform, sys_clk_freq, bus_data_width=bus_data_width,
                          ident="LiteX standalone SoC generator on {}".format(platform_name))
 
 
@@ -101,9 +101,9 @@ class BaseSoC(SoCMini, AutoDoc):
         self.add_ram("shared_ram", 0x0000_0000, shared_ram_size, contents=contents)
 
         # Buses
-        self.submodules.bus1 = SoCBusHandler()
+        self.submodules.bus1 = SoCBusHandler(data_width=bus_data_width)
         self.buses.append(self.bus1)
-        self.submodules.bus2 = SoCBusHandler()
+        self.submodules.bus2 = SoCBusHandler(data_width=bus_data_width)
         self.buses.append(self.bus2)
 
         # Interfaces to processors
