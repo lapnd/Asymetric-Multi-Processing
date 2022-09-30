@@ -271,7 +271,8 @@ class BaseSoC(SoCMini, AutoDoc):
 # Build --------------------------------------------------------------------------------------------
 
 def extract_config(config_file, config):
-    configuration = {}    print(config_file)
+    configuration = {}
+    print(config_file)
     assert os.path.exists(config_file)
     with open(config_file, 'r') as f:
         data = json.load(f)
